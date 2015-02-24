@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# Here's our fancy build pipeline.  Output = src/mtsystem (binary file)
+./Merlin32 . src/mt.s
+
+
+# name of your disk image
+DISK="MT"
+
+# set one of the following to true
+USE_CADIUS=true
+USE_APPLECOMMANDER=false
+
+
+SRCFILES=(`ls src/*.s`)
+SYSFILES=(`ls src/*system`)
+CADIUS="../tools/Cadius"
+P8NAME="$DISK"
+IMGNAME="$DISK.po" 
+DISKSIZE=800KB
+SRCDIR=src
+BLDDIR=build/nix
+
+if [ ! -d $BLDDIR ] ; then
+  echo "Build directory for this platform doesn't exist so I will create it."
+  mkdir -p $BLDDIR
+  echo "Created: $BLDDIR"
+  sleep 1
+fi
+
+# need to autogen
+cp src/_FileInformation.txt $BLDDIR
+
+$CADIUS createvolume $IMGNAME $P8NAME $DISKSIZE
+
+#SOURCE FILES
+for f in ${SRCFILES[@]}; 
+do
+  FNAME=${f##*/}
+  echo Processing $FNAME
+  cp $f $BLDDIR/$FNAME 
+  $CADIUS sethighbit $BLDDIR/$FNAME 
+  $CADIUS addfile $IMGNAME /$P8NAME/ $BLDDIR/$FNAME -V
+done
+
+
+#SYSTEM FILES
+for f in ${SYSFILES[@]}; 
+do
+  FNAME=${f##*/}
+  echo Processing $FNAME
+  cp $f $BLDDIR/$FNAME 
+  #$CADIUS sethighbit $BLDDIR/$FNAME 
+  $CADIUS addfile $IMGNAME /$P8NAME/ $BLDDIR/$FNAME -V
+done
+
+
+
+exit
+
