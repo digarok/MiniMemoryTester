@@ -14,6 +14,8 @@
 MLI	equ $bf00
 
 	jsr DrawMenu
+	jsr GetStartBank
+	jsr GetThing
 	jsr WaitKey
 
 
@@ -31,6 +33,54 @@ QuitParm	dfb 4	; number of parameters
 
 
 Error	brk $00	; shouldn't be here either
+GetStartBank	
+	lda #13
+	sta $24
+	lda #10
+	sta $25
+	jsr VTAB
+	lda #"$"
+	sta $33
+	jsr GetHex
+	jsr RDKEY
+	jsr PRBYTE
+	rts
+
+* Pass desired length in A
+GetHex	sta _gethex_maxlen
+:input	jsr RDKEY
+	cmp #"9"+1
+	bcs :notNum	;bge > 9
+	cmp #"0"
+	bcc :badChar	;
+	sec
+	sbc #"0"
+	bra :gotHex
+:notNum	cmp #"a"
+	bcc :notLower
+	sec
+	sbc #$20	; ToUpper
+:notLower	cmp #"A"
+	bcc :badChar
+	cmp #"F"+1
+	bcs :badChar
+:gotHex	jsr PRHEX
+	rts
+
+:badChar	bra :input
+
+
+_gethex_maxlen	db 1
+
+GetThing	lda #13
+	sta $24
+	lda #10
+	sta $25
+	jsr VTAB
+	lda #"$"
+	sta $33
+	jsr GETLN
+	rts
 
 DrawMenu	jsr HOME
 	lda #MenuStrs
@@ -81,13 +131,13 @@ PrintString	sta $0
 :done	rts
 
 MenuStrs
-	asc "     *********************** ",$8D,$00
-	asc "    **                     **",$8D,$00
-	asc "    **  Mini Memory Tester **",$8D,$00
-	asc "    **    Reactive Micro   **",$8D,$00
-	asc "    **        (beta)       **",$8D,$00
-	asc "    **                     **",$8D,$00
-	asc "     *********************** ",$8D,$00
+	asc "        *********************** ",$8D,$00
+	asc "       **                     **",$8D,$00
+	asc "       **  Mini Memory Tester **",$8D,$00
+	asc "       **    Reactive Micro   **",$8D,$00
+	asc "       **        (beta)       **",$8D,$00
+	asc "       **                     **",$8D,$00
+	asc "        *********************** ",$8D,$00
 	asc $8D,$8D,$8D,$00
 	asc " Start BANK:  ",$8D,$00
 	asc "   End BANK:  ",$8D,$8D,$00
@@ -111,4 +161,5 @@ StartBank	db  #$02
 EndBank	db  #$7F
 StartAddr	dw  #$0000
 EndAddr	dw  #$FFFF
+TestValue	dw  #$00
 

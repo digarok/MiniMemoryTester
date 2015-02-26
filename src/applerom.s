@@ -1,6 +1,9 @@
 **************************************************
 * Apple Standard Memory Locations
 **************************************************
+CH	EQU   $24
+CV	EQU   $25
+
 CLRLORES	equ $F832
 LORES	equ $C050
 TXTSET	equ $C051
@@ -51,5 +54,6 @@ RDKEY	equ $FD0C	; Displays blinking cursor; goes to standard input
 		;  routine, nonnally KEYIN or BASICIN
 SCRN	equ $F871	; Reads color of a low-resolution block
 SETCOL	equ $F864	; Sets the color for plotting in low-resolution block
-VTABZ	equ $FC24	; Sets the cursor vertical position
+VTAB	equ $FC22	; Sets the cursor vertical position (from CV)
+VTABZ	equ $FC24	; Sets the cursor vertical position (0)
 VLINE	equ $F828	; Draws a vertical line of low-resolution blocks
