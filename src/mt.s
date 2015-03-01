@@ -160,12 +160,13 @@ DrawMenuOptions	sta $0
 :drawOption
 	ldy _menuOptionPtr
 	lda ($0),y
+	beq :menuDone
 	tax
+	iny
 	lda ($0),y
 	tay
 	jsr GoXY
 	ldy _menuOptionPtr
-	iny
 	iny
 	iny
 	lda ($0),y
@@ -175,32 +176,55 @@ DrawMenuOptions	sta $0
 	cmp #2
 	beq :jsrItem
 :charItem
-:hexItem
+:hexItem	iny
+	lda ($0),y	; get len
+	sta _menuHexIdx
+	iny	
+	lda ($0),y	; get da
+	sta $2	; storez
+	iny	
+	lda ($0),y	; get da
+	sta $3	; storez
+	ldy #0
+:prloop	lda ($2),y
+	jsr PRBYTE
+	iny
+	cpy _menuHexIdx
+	bne :prloop
+	lda _menuOptionPtr
+	clc
+	adc #6	; len of "struct"
+	sta _menuOptionPtr
+	bra :drawOption
 :jsrItem	
+:menuDone
 	rts
-
+_menuHexIdx	dw 0
 
 
 _menuOptionPtr	dw  00
 MainMenuDefs
-Menu_StartBank	hex 10,10 ; x,y
-	hex 01,01   ; memory size (bytes), 0=char/1=hex input
-	da StartBank ; variable storage 
-
-Menu_EndBank	hex 10,11 ; x,y
-	hex 01,01   ; memory size (bytes), 0=char/1=hex input
-	da EndBank ; variable storage 
-Menu_StartAddr	hex 10,13 ; x,y
-	hex 02,01   ; memory size (bytes), 0=char/1=hex input
-	da StartAddr ; variable storage 
-Menu_EndAddr	hex 10,14 ; x,y
-	hex 02,01   ; memory size (bytes), 0=char/1=hex input
-	da EndAddr ; variable storage 
-Menu_BeginTest	hex 12,15 ; x,y
+Menu_StartBank	hex 0D,0A ; x,y
+	db 01	; 0=char/1=hex input 2=Menu JSR
+	db 01	; memory size (bytes), 0=char/1=hex input
+	da StartBank	; variable storage 
+Menu_EndBank	hex 0D,0B	; x,y
+	db 01	; 0=char/1=hex input 2=Menu JSR
+	db 01	; memory size (bytes), 0=char/1=hex input
+	da EndBank	; variable storage 
+Menu_StartAddr	hex 0D,0D	; x,y
+	db 01	; 0=char/1=hex input 2=Menu JSR
+	db 02	; memory size (bytes), 0=char/1=hex input
+	da StartAddr	; variable storage 
+Menu_EndAddr	hex 0D,0E	; x,y
+	db 01	; 0=char/1=hex input 2=Menu JSR
+	db 02	; memory size (bytes), 0=char/1=hex input
+	da EndAddr	; variable storage 
+Menu_BeginTest	hex 0D,12	; x,y
+	db 02	; 0=char/1=hex input 2=Menu JSR
 	db MenuStr_BeginTestL ; menu string length
-	db 02   ; memory size (bytes), 2=Menu JSR
 	da MenuStr_BeginTest ; string storage 
-
+MainMenuEnd	dw 0000
 
 
 MenuStr_JSR	da BeginTest	; MUST PRECEDE MENU STRING!  Yes, it's magicly inferred. (-2)
