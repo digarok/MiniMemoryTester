@@ -15,7 +15,6 @@ MLI	equ $bf00
 
 	jsr DrawMenu
 	jsr GetStartBank
-	jsr GetThing
 	jsr WaitKey
 
 
@@ -124,13 +123,6 @@ HexCharForByte
 	adc #"A"
 	rts
 
-GetThing	ldx #13
-	ldy #10
-	jsr GoXY
-	lda #"$"
-	sta $33
-	jsr GETLN
-	rts
 
 DrawMenu	jsr HOME
 	lda #MainMenuStrs
