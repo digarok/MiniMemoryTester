@@ -14,8 +14,12 @@
 MLI	equ $bf00
 
 	jsr DrawMenu
+	jsr DrawSelected
+	jsr WaitKey
 	jsr GetStartBank
 	jsr WaitKey
+
+
 
 
 Quit	jsr MLI	; first actual command, call ProDOS vector
@@ -136,8 +140,6 @@ DrawMenu	jsr HOME
 
 BeginTest	brk $ff
 
-* x=x y=y a=len
-MenuHighlight
 
 * DEFAULTS
 StartBank	db  #$02
@@ -167,7 +169,7 @@ DrawMenuOptions	sta $0
 	beq :hexItem
 	cmp #2
 	beq :jsrItem
-:charItem
+:charItem	
 :hexItem	iny
 	lda ($0),y	; get len
 	sta _menuHexIdx
@@ -183,18 +185,40 @@ DrawMenuOptions	sta $0
 	iny
 	cpy _menuHexIdx
 	bne :prloop
+	bra :nextMenuItem
+:jsrItem
+	iny
+	iny
+	lda ($0),y
+	tax
+	iny
+	lda ($0),y
+	tay
+
+	lda $0	; whoops.. save zp ptrs that printstring uses :(
+	pha
+	lda $1
+	pha
+
+	txa
+	jsr PrintString
+	pla
+	sta $1
+	pla
+	sta $0
+
+:nextMenuItem
 	lda _menuOptionPtr
 	clc
 	adc #6	; len of "struct"
 	sta _menuOptionPtr
 	bra :drawOption
-:jsrItem	
 :menuDone
 	rts
-_menuHexIdx	dw 0
-
-
+_menuHexIdx	dw  0
 _menuOptionPtr	dw  00
+
+Menu_ItemSelected	db  0
 MainMenuDefs
 Menu_StartBank	hex 0D,0A ; x,y
 	db 01	; 0=char/1=hex input 2=Menu JSR
@@ -219,8 +243,9 @@ Menu_BeginTest	hex 0D,12	; x,y
 MainMenuEnd	dw 0000
 
 
+
 MenuStr_JSR	da BeginTest	; MUST PRECEDE MENU STRING!  Yes, it's magicly inferred. (-2)
-MenuStr_BeginTest	asc "BEGIN TEST"
+MenuStr_BeginTest	asc "BEGIN TEST",$00,$00
 MenuStr_BeginTestL  equ #*-MenuStr_BeginTest
 
 MainMenuStrs
@@ -243,12 +268,28 @@ MainMenuStrs
 	hex 00,00
 	
 
+PrintStringDebug	sta $0
+	sty $1
+
+	ldy #0
+:loop	lda ($0),y
+	beq :done
+	jsr COUT
+	jsr WaitKey
+	iny
+	bra :loop
+:done	rts
+
 
 
 WaitKey
 :kloop	lda KEY
 	bpl :kloop
 	sta STROBE
+	cmp #"b"	; REMOVE DEBUG
+	bne :nobreak
+	brk $75
+:nobreak
 	rts
 
 	put strings.s
