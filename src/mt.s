@@ -376,6 +376,74 @@ _menuSelectedX1	db 0	; no x2 cuz we be addin'
 _menuSelectedY	db 0
 
 Menu_HandleSelection 
+	lda #MainMenuDefs
+	ldy #>MainMenuDefs
+	sta $0
+	sty $1
+	lda #0
+	ldx Menu_ItemSelected
+:check	beq :foundIdx
+	clc
+	adc #6	; "struct" size
+	dex 
+	bra :check
+:foundIdx	sta _stash
+	tay
+	lda ($0),y
+	tax
+	iny
+	lda ($0),y
+	tay
+	jsr GoXY
+*** HERE
+	ldy _stash
+	iny
+	iny
+	lda ($0),y
+	bne :notChar
+
+*TODO
+:notChar	cmp #1
+	bne :notHex
+	iny
+	lda ($0),y
+	asl	;*2
+	pha
+	iny
+	lda ($0),y
+	pha
+	iny
+	lda ($0),y
+	tay
+	plx
+	pla
+	jsr GetHex
+	rts
+
+
+:notHex	cmp #2
+	bne :wtf
+
+
+:wtf
+	rts
+
+
+	lda #2
+	ldx #>StartBank
+	ldy #StartBank
+	jsr GetHex
+
+
+* EG
+*Menu_EndAddr	hex 0D,0E	; x,y
+*	db 01	; 0=char/1=hex input 2=Menu JSR
+*	db 02	; memory size (bytes), 0=char/1=hex input
+*	da EndAddr	; variable storage 
+
+
+
+
 	rts
 Menu_PrevItem	dec Menu_ItemSelected
 	bpl :noflip
