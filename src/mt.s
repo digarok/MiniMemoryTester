@@ -13,11 +13,30 @@
 
 MLI	equ $bf00
 
-	jsr DrawMenu
-	jsr DrawSelected
+Main	jsr Menu_Draw
+:menuLoop	jsr Menu_UndrawSelected
+	jsr Menu_DrawSelected
 	jsr WaitKey
-	jsr GetStartBank
-	jsr WaitKey
+	cmp #$8D	; ENTER
+	bne :check1
+:enter	jsr Menu_HandleSelection
+	bra :menuLoop
+
+:check1	cmp #$8B	; UP
+	bne :check2
+	jsr Menu_PrevItem
+	bra :menuLoop
+
+:check2	cmp #$8A	; DOWN
+	bne :noKey
+	jsr Menu_NextItem
+	bra :menuLoop
+
+:noKey	bra :menuLoop
+* LOOOOOOOOOP ^^^^^^
+
+
+
 
 
 
@@ -128,14 +147,14 @@ HexCharForByte
 	rts
 
 
-DrawMenu	jsr HOME
+Menu_Draw	jsr HOME
 	lda #MainMenuStrs
 	ldy #>MainMenuStrs
 	ldx #05	; horiz pos
 	jsr PrintStringsX
 	lda #MainMenuDefs
 	ldy #>MainMenuDefs
-	jsr DrawMenuOptions
+	jsr Menu_DrawOptions
 	rts
 
 BeginTest	brk $ff
@@ -148,7 +167,7 @@ StartAddr	dw  #$0000
 EndAddr	dw  #$FFFF
 TestValue	dw  #$00
 
-DrawMenuOptions	sta $0
+Menu_DrawOptions	sta $0
 	sty $1
 	stz _menuOptionPtr
 :drawOption
@@ -217,6 +236,164 @@ DrawMenuOptions	sta $0
 	rts
 _menuHexIdx	dw  0
 _menuOptionPtr	dw  00
+Menu_UndrawSelected	
+	lda #MainMenuDefs
+	ldy #>MainMenuDefs
+	sta $0
+	sty $1
+	stz _stash
+
+:undrawLoop	ldy _stash	; struct ptr
+	lda ($0),y
+	beq :stop
+	dec	; x-- (left bracket)
+	sta _menuSelectedX1
+	iny
+	lda ($0),y
+	sta _menuSelectedY
+	iny 
+	lda ($0),y
+	bne :notChar
+	iny
+	lda ($0),y
+	inc	;doit
+	clc
+	adc _menuSelectedX1
+	tax
+	bra :rightBracket
+
+:notChar	cmp #1
+	bne :notHex
+	iny 
+	lda ($0),y
+	asl
+	inc	;doit
+	clc
+	adc _menuSelectedX1
+	tax
+	bra :rightBracket
+
+:notHex	cmp #2
+	bne :wtf
+	iny 
+	lda ($0),y
+
+	inc
+	clc
+	adc _menuSelectedX1
+	tax
+	bra :rightBracket
+
+
+:wtf
+
+:rightBracket
+	ldy _menuSelectedY
+	jsr GoXY
+	lda #" "
+	jsr COUT
+:leftBracket	ldx _menuSelectedX1
+	ldy _menuSelectedY
+	jsr GoXY 
+	lda #" "
+	jsr COUT
+	lda _stash
+	clc
+	adc #6
+	sta _stash
+	bra :undrawLoop
+:stop
+	rts
+Menu_DrawSelected	
+	lda #MainMenuDefs
+	ldy #>MainMenuDefs
+	sta $0
+	sty $1
+	lda #0
+	ldx Menu_ItemSelected
+:check	beq :foundIdx
+	clc
+	adc #6	; "struct" size
+	dex 
+	bra :check
+
+:foundIdx	tay
+	lda ($0),y
+	dec	; x-- (left bracket)
+	sta _menuSelectedX1
+	iny
+	lda ($0),y
+	sta _menuSelectedY
+	iny 
+	lda ($0),y
+	bne :notChar
+	iny
+	lda ($0),y
+	inc	;doit
+	clc
+	adc _menuSelectedX1
+	tax
+	bra :rightBracket
+
+:notChar	cmp #1
+	bne :notHex
+	iny 
+	lda ($0),y
+	asl
+	inc	;doit
+	clc
+	adc _menuSelectedX1
+	tax
+	bra :rightBracket
+
+:notHex	cmp #2
+	bne :wtf
+	iny 
+	lda ($0),y
+
+	inc
+	clc
+	adc _menuSelectedX1
+	tax
+	bra :rightBracket
+
+
+:wtf
+
+:rightBracket
+	ldy _menuSelectedY
+	jsr GoXY
+	lda #"]"
+	jsr COUT
+:leftBracket	ldx _menuSelectedX1
+	ldy _menuSelectedY
+	jsr GoXY 
+	lda #"["
+	jsr COUT
+
+	rts
+_menuSelectedX1	db 0	; no x2 cuz we be addin'
+_menuSelectedY	db 0
+
+Menu_HandleSelection 
+	rts
+Menu_PrevItem	dec Menu_ItemSelected
+	bpl :noflip
+	lda #MainMenuItems
+	dec
+	sta Menu_ItemSelected
+
+:noflip	rts
+
+Menu_NextItem	
+	inc Menu_ItemSelected
+	lda Menu_ItemSelected
+	cmp #MainMenuItems
+	bcc :noflip
+	lda #0
+	sta Menu_ItemSelected
+:noflip	rts
+
 
 Menu_ItemSelected	db  0
 MainMenuDefs
@@ -240,14 +417,16 @@ Menu_BeginTest	hex 0D,12	; x,y
 	db 02	; 0=char/1=hex input 2=Menu JSR
 	db MenuStr_BeginTestL ; menu string length
 	da MenuStr_BeginTest ; string storage 
+MainMenuLen	equ *-Menu_StartBank
+MainMenuItems	equ MainMenuLen/6
 MainMenuEnd	dw 0000
 
 
 
 MenuStr_JSR	da BeginTest	; MUST PRECEDE MENU STRING!  Yes, it's magicly inferred. (-2)
-MenuStr_BeginTest	asc "BEGIN TEST",$00,$00
+MenuStr_BeginTest	asc "BEGIN TEST"
 MenuStr_BeginTestL  equ #*-MenuStr_BeginTest
-
+MenuStr_BeginTestE	db 00
 MainMenuStrs
 	asc "        *********************** ",$8D,$00
 	asc "       **                     **",$8D,$00
@@ -293,4 +472,7 @@ WaitKey
 	rts
 
 	put strings.s
+	ds \
+_stash	ds 255
+	ds \
 
