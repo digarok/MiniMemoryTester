@@ -423,23 +423,36 @@ Menu_HandleSelection
 
 :notHex	cmp #2
 	bne :wtf
+	brk $fe	
+	iny	; skip len byte
+	iny
+	lda ($0),y
+	sta :ACTION+1
+	iny
+	lda ($0),y
+	sta :ACTION+2
+	lda :ACTION+1
+	sec
+	sbc #2
+	sta :ACTION+1
+	bcs :copy
+	dec :ACTION+2
+:copy	ldx #0	; this is all so bad
+:ACTION	lda $ffff,x
+	sta :JSR+1,x
+	inx
+	cpx #2
+	bcc :ACTION
+:JSR	jsr $ffff
+	rts
+
+
 
 
 :wtf
 	rts
 
 
-	lda #2
-	ldx #>StartBank
-	ldy #StartBank
-	jsr GetHex
-
-
-* EG
-*Menu_EndAddr	hex 0D,0E	; x,y
-*	db 01	; 0=char/1=hex input 2=Menu JSR
-*	db 02	; memory size (bytes), 0=char/1=hex input
-*	da EndAddr	; variable storage 
 
 
 
