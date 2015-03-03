@@ -55,17 +55,6 @@ QuitParm	dfb 4	; number of parameters
 
 
 Error	brk $00	; shouldn't be here either
-GetStartBank	
-	ldx #13
-	ldy #10
-	jsr GoXY
-	lda #2
-	ldx #>StartBank
-	ldy #StartBank
-	jsr GetHex
-	brk $99
-	lda StartBank
-	rts
 
 * Pass desired length in A
 GetHex	sta _gethex_maxlen
@@ -92,8 +81,10 @@ GetHex	sta _gethex_maxlen
 :gotHex	
 	sec
 	sbc #"A"-10
-:storeInput
+:storeInput	
+	pha
 	jsr PRHEX
+	pla
 	ldy _gethex_current
 	sta _gethex_buffer,y
 	iny
@@ -104,7 +95,7 @@ GetHex	sta _gethex_maxlen
 	sty _gethex_current
 	bra :input
 :internalmax
-:passedmax
+:passedmax	
 	lda _gethex_resultptr
 	sta $0
 	lda _gethex_resultptr+1
@@ -157,15 +148,95 @@ Menu_Draw	jsr HOME
 	jsr Menu_DrawOptions
 	rts
 
-BeginTest	brk $ff
+BeginTest	stz _testIteration
+	stz _testIteration+1
+	ldx #23
+	ldy #10
+	jsr GoXY
+	lda #Mesg_Writing
+	ldy #>Mesg_Writing
+	jsr PrintString
+
+	clc	; WRITE START
+	xce
+	rep $10	; long x, short a
+	lda StartBank
+	sta CurBank
+	ldy #0	; update interval counter
+:bankloop	lda CurBank
+	sta :bankstore+3
+	ldx StartAddr
+	lda TestValue 
+:bankstore	stal $000000,x
+	cpx EndAddr
+	beq :donebank
+	inx
+	iny
+	cpy #UpdateScanInterval
+	bcc :bankstore
+	jsr PrintTestCurrent
+	ldy #0
+	bra :bankstore
+:donebank	
+	ldy #0	; because i'm anal.. this makes counter align
+	inc CurBank
+	lda EndBank
+	cmp CurBank
+	bcs :bankloop
+	jsr PrintTestCurrent ; print final score ;)
+	sep $10
+	sec
+	xce	; WRITE END
+* TODO DO PAUSE
+* TODO DO READ
+	ldx #23
+	ldy #10
+	jsr GoXY
+	lda #Mesg_WritingB
+	ldy #>Mesg_WritingB
+	jsr PrintString
+	rts
+_testIteration	ds 8
+UpdateScanInterval  equ #$0800
+Mesg_Writing	asc "Writing: ",00
+Mesg_WritingB	asc "                 ",00
+	mx %01
+PrintTestCurrent	pha
+	phy
+	stx _stash	; save real X
+	sec
+	xce
+	ldx #33
+	ldy #10
+	jsr GoXY
+	lda CurBank
+	jsr PRBYTE
+	lda #"/"
+	jsr COUT
+	lda _stash+1
+	jsr PRBYTE
+	lda _stash
+	jsr PRBYTE
+
+	clc
+	xce
+	rep $10
+	ldx _stash
+	ply
+	pla
+	rts
+	mx %11
+
 
 
 * DEFAULTS
-StartBank	db  #$02
+StartBank	db  #$06
 EndBank	db  #$7F
+CurBank	db  #0
 StartAddr	dw  #$0000
 EndAddr	dw  #$FFFF
 TestValue	dw  #$00
+TestDelay	dw  #$05
 
 Menu_DrawOptions	sta $0
 	sty $1
@@ -423,7 +494,6 @@ Menu_HandleSelection
 
 :notHex	cmp #2
 	bne :wtf
-	brk $fe	
 	iny	; skip len byte
 	iny
 	lda ($0),y
@@ -457,14 +527,13 @@ Menu_HandleSelection
 
 
 
-	rts
 Menu_PrevItem	dec Menu_ItemSelected
 	bpl :noflip
 	lda #MainMenuItems
 	dec
 	sta Menu_ItemSelected
-
 :noflip	rts
+
 
 Menu_NextItem	
 	inc Menu_ItemSelected
@@ -476,31 +545,39 @@ Menu_NextItem
 :noflip	rts
 
 
-Menu_ItemSelected	db  0
 MainMenuDefs
-Menu_StartBank	hex 0D,0A ; x,y
+:StartBank	hex 0D,0A ; x,y
 	db 01	; 0=char/1=hex input 2=Menu JSR
 	db 01	; memory size (bytes), 0=char/1=hex input
 	da StartBank	; variable storage 
-Menu_EndBank	hex 0D,0B	; x,y
+:EndBank	hex 0D,0B	; x,y
 	db 01	; 0=char/1=hex input 2=Menu JSR
 	db 01	; memory size (bytes), 0=char/1=hex input
 	da EndBank	; variable storage 
-Menu_StartAddr	hex 0D,0D	; x,y
+:StartAddr	hex 0D,0D	; x,y
 	db 01	; 0=char/1=hex input 2=Menu JSR
 	db 02	; memory size (bytes), 0=char/1=hex input
 	da StartAddr	; variable storage 
-Menu_EndAddr	hex 0D,0E	; x,y
+:EndAddr	hex 0D,0E	; x,y
 	db 01	; 0=char/1=hex input 2=Menu JSR
 	db 02	; memory size (bytes), 0=char/1=hex input
 	da EndAddr	; variable storage 
-Menu_BeginTest	hex 0D,12	; x,y
+:TestByte	hex 0D,10	; x,y
+	db 01	; 0=char/1=hex input 2=Menu JSR
+	db 01	; memory size (bytes), 0=char/1=hex input
+	da TestValue	; variable storage 
+:TestDelay	hex 0D,11	; x,y
+	db 01	; 0=char/1=hex input 2=Menu JSR
+	db 01	; memory size (bytes), 0=char/1=hex input
+	da TestDelay	; variable storage 
+:BeginTest	hex 0D,13	; x,y
 	db 02	; 0=char/1=hex input 2=Menu JSR
 	db MenuStr_BeginTestL ; menu string length
 	da MenuStr_BeginTest ; string storage 
-MainMenuLen	equ *-Menu_StartBank
+MainMenuLen	equ *-MainMenuDefs
 MainMenuItems	equ MainMenuLen/6
 MainMenuEnd	dw 0000
+Menu_ItemSelected	db  0
 
 
 
@@ -509,36 +586,25 @@ MenuStr_BeginTest	asc "BEGIN TEST"
 MenuStr_BeginTestL  equ #*-MenuStr_BeginTest
 MenuStr_BeginTestE	db 00
 MainMenuStrs
-	asc "        *********************** ",$8D,$00
-	asc "       **                     **",$8D,$00
-	asc "       **  Mini Memory Tester **",$8D,$00
-	asc "       **    Reactive Micro   **",$8D,$00
-	asc "       **        (beta)       **",$8D,$00
-	asc "       **                     **",$8D,$00
-	asc "        *********************** ",$8D,$00
+	asc "         *********************** ",$8D,$00
+	asc "        **                     **",$8D,$00
+	asc "        **  Mini Memory Tester **",$8D,$00
+	asc "        **    Reactive Micro   **",$8D,$00
+	asc "        **        (beta)       **",$8D,$00
+	asc "        **                     **",$8D,$00
+	asc "         *********************** ",$8D,$00
 	asc $8D,$8D,$8D,$00
 	asc " Start BANK:  ",$8D,$00
 	asc "   End BANK:  ",$8D,$8D,$00
 	asc " Start ADDR:  ",$8D,$00
-	asc "   End ADDR:  ",$8D,$8D,$8D,$00
-	asc "  Test Byte:    (Leave empty = random)",$8D,$8D,$8D,$00
-	asc "        USE ARROW KEYS TO MOVE",8D,$00
-	asc "       USE ENTER TO SELECT/EDIT",$8D,$00
+	asc "   End ADDR:  ",$8D,$8D,$00
+	asc "  Test Byte:  ",$8D,$00
+	asc " Test Delay:  ",$8D,$8D,$8D,$8D,$8D,$00
+	asc "         USE ARROW KEYS TO MOVE",8D,$00
+	asc "        USE ENTER TO SELECT/EDIT",$00
 	
 	hex 00,00
 	
-
-PrintStringDebug	sta $0
-	sty $1
-
-	ldy #0
-:loop	lda ($0),y
-	beq :done
-	jsr COUT
-	jsr WaitKey
-	iny
-	bra :loop
-:done	rts
 
 
 
