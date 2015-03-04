@@ -1,18 +1,46 @@
+**** MACROS
+* GOXY #x;#y
+* PRINTXY #x;#y;StringAddrWord
+**** FUNCTIONS
 * GoXY
 * PrintStringsX
 * PrintString
  
+
+GOXY	MAC
+	ldx ]1
+	ldy ]2
+	stx $24
+	sty $25
+	jsr VTAB
+	<<<
+
+PRINTXY	MAC
+	ldx ]1
+	ldy ]2
+	stx $24
+	sty $25
+	jsr VTAB
+	lda #]3
+	ldy #>]3
+	jsr PrintString
+	<<<
 
 GoXY	stx $24
 	sty $25
 	jsr VTAB
 	rts
 
-PrintStringsX	stx _printstringsx_horiz	; IGNORED! 4 NOW!
+*	lda #MainMenuStrs
+*	ldy #>MainMenuStrs
+*	ldx #05	; horiz pos
+PrintStringsX	stx _printstringsx_horiz
 
 	sta $0
 	sty $1
-:loop	lda $0	; slower, but allows API reuse
+:loop	lda _printstringsx_horiz
+	sta $24
+	lda $0	; slower, but allows API reuse
 	ldy $1
 	jsr PrintString	; y is last val
 	iny

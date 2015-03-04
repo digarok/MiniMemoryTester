@@ -10,11 +10,17 @@
 	dsk mtsystem ; tell compiler what name for output file
 	put applerom
 
-
 MLI	equ $bf00
+Init
+	LDA #$A0           ;USE A BLANK SPACE TO
+	JSR $C300          ;TURN ON THE VIDEO FIRMWARE
 
-Main	jsr Menu_Draw
-:menuLoop	jsr Menu_UndrawSelected
+	lda $C034	; save border color
+	sta BorderColor
+	
+Main	
+:menuLoop	jsr Menu_Draw
+:menuNoDrawLoop	jsr Menu_UndrawSelected
 	jsr Menu_DrawSelected
 	jsr WaitKey
 	cmp #$8D	; ENTER
@@ -25,12 +31,12 @@ Main	jsr Menu_Draw
 :check1	cmp #$8B	; UP
 	bne :check2
 	jsr Menu_PrevItem
-	bra :menuLoop
+	bra :menuNoDrawLoop
 
 :check2	cmp #$8A	; DOWN
 	bne :noKey
 	jsr Menu_NextItem
-	bra :menuLoop
+	bra :menuNoDrawLoop
 
 :noKey	bra :menuLoop
 * LOOOOOOOOOP ^^^^^^
@@ -63,7 +69,10 @@ GetHex	sta _gethex_maxlen
 	stz _gethex_current
 
 :input	jsr RDKEY
-	cmp #"9"+1
+	cmp #$9B	;esc = abort
+	bne :notesc
+	rts
+:notesc	cmp #"9"+1
 	bcs :notNum	;bge > 9
 	cmp #"0"
 	bcc :badChar	;
@@ -141,7 +150,7 @@ HexCharForByte
 Menu_Draw	jsr HOME
 	lda #MainMenuStrs
 	ldy #>MainMenuStrs
-	ldx #05	; horiz pos
+	ldx #00	; horiz pos
 	jsr PrintStringsX
 	lda #MainMenuDefs
 	ldy #>MainMenuDefs
@@ -150,12 +159,19 @@ Menu_Draw	jsr HOME
 
 BeginTest	stz _testIteration
 	stz _testIteration+1
-	ldx #23
-	ldy #10
-	jsr GoXY
-	lda #Mesg_Writing
-	ldy #>Mesg_Writing
-	jsr PrintString
+	ldx #40
+	ldy #07
+	lda #5
+	jsr PrintBox30
+BeginTestPass	PRINTXY  #44;#08;Mesg_TestPass
+	inc _testIteration
+	bne :noroll
+	inc _testIteration+1
+:noroll	lda _testIteration+1
+	jsr PRBYTE
+	lda _testIteration
+	jsr PRBYTE
+	PRINTXY  #44;#10;Mesg_Writing
 
 	clc	; WRITE START
 	xce
@@ -183,40 +199,182 @@ BeginTest	stz _testIteration
 	lda EndBank
 	cmp CurBank
 	bcs :bankloop
+	dec CurBank	; so many bad hacks
 	jsr PrintTestCurrent ; print final score ;)
 	sep $10
 	sec
 	xce	; WRITE END
-* TODO DO PAUSE
-* TODO DO READ
-	ldx #23
-	ldy #10
+
+	jsr Pauser	; PAUSE
+
+	PRINTXY  #44;#10;Mesg_Reading ; READ PREP
+
+	clc	; READ START
+	xce
+	rep $10	; long x, short a
+	lda StartBank
+	sta CurBank
+	ldy #0	; update interval counter
+:bankrloop	lda CurBank
+	sta :bankread+3
+	ldx StartAddr
+:bankread	ldal $000000,x
+	cmp TestValue 
+	beq :testpass
+	phx
+	sta _stash	; = read value
+	lda TestValue
+	sta _stash+1	; = expected value
+	stx _stash+2
+	jsr PrintTestError	; addr in X
+	plx
+:testpass	cpx EndAddr
+	beq :donerbank
+	inx
+	iny
+	cpy #UpdateScanInterval
+	bcc :bankread
+	jsr PrintTestCurrent
+	ldy #0
+	bra :bankread
+:donerbank	
+	ldy #0	; because i'm anal.. this makes counter align
+	inc CurBank
+	lda EndBank
+	cmp CurBank
+	bcs :bankrloop
+	dec CurBank	; so many bad hacks
+	jsr PrintTestCurrent ; print final score ;)
+	sep $10
+	sec
+	xce	; WRITE END
+
+
+
+
+
+:kloop	lda KEY
+	bmi :gotOne
+	jsr Pauser	; PAUSE
+	jmp BeginTestPass
+:gotOne	sta STROBE
+	cmp #"b"	; REMOVE DEBUG
+	bne :nobreak
+	brk $75
+:nobreak
+	lda BorderColor
+	sta $C034
+	rts
+
+_testIteration	ds 8
+UpdateScanInterval  equ #$3000
+Mesg_Waiting	asc "Waiting: ",00
+Mesg_Writing	asc "Writing: ",00
+Mesg_Reading	asc "Reading: ",00
+Mesg_Error1	asc " Error at: $",00
+Mesg_Error2	asc " Expected: $   %",$00
+Mesg_Error3	asc "     Read: $   %",$00
+Mesg_TestPass	asc "   Pass:  ",00
+Mesg_Blank	asc "                 ",00
+Mesg_BoxTop30	asc $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,$8D,00
+Mesg_BoxMid30	asc $1B,'Z',"                            ",'_',$18,$8D,$00
+Mesg_BoxBot30	asc $1B,'Z',"____________________________",'_',$18,$8D,$00
+
+* x, y, a=height
+PrintBox30	stx _prbox_x
+	sta _prbox_height
 	jsr GoXY
-	lda #Mesg_WritingB
-	ldy #>Mesg_WritingB
+	lda #Mesg_BoxTop30
+	ldy #>Mesg_BoxTop30
+	jsr PrintString
+:midloop	ldx _prbox_x
+	stx $24
+	lda #Mesg_BoxMid30
+	ldy #>Mesg_BoxMid30
+	jsr PrintString
+	dec _prbox_height
+	bne :midloop
+
+	ldx _prbox_x
+	stx $24
+	lda #Mesg_BoxBot30
+	ldy #>Mesg_BoxBot30
 	jsr PrintString
 	rts
-_testIteration	ds 8
-UpdateScanInterval  equ #$0800
-Mesg_Writing	asc "Writing: ",00
-Mesg_WritingB	asc "                 ",00
+_prbox_x	db 0
+_prbox_height	db 0
+	
+
+
+PrintTestError	
+	sec
+	xce
+	ldx #42
+	ldy #13
+	lda #4
+	jsr PrintBox30
+	PRINTXY #45;#14;#Mesg_Error1
+	PRINTXY #45;#16;#Mesg_Error2
+	PRINTXY #45;#17;#Mesg_Error3
+	GOXY #57;#14
+	lda CurBank
+	jsr PRBYTE
+	lda #"/"
+	jsr COUT
+	lda _stash+3
+	jsr PRBYTE
+	lda _stash+2
+	jsr PRBYTE
+	GOXY #57;#16
+	lda _stash+1
+	jsr PRBYTE
+	GOXY #61;#16
+	lda _stash+1
+	jsr PRBIN
+	GOXY #57;#17
+	lda _stash
+	jsr PRBYTE
+	GOXY #61;#17
+	lda _stash
+	jsr PRBIN
+	GOXY #66;#14
+	jsr RDKEY
+
+	clc
+	xce
+	rep $10
+	rts
 	mx %01
 PrintTestCurrent	pha
 	phy
 	stx _stash	; save real X
 	sec
 	xce
-	ldx #33
-	ldy #10
-	jsr GoXY
+	GOXY #54;#10
 	lda CurBank
+	sta :corruptme+3
 	jsr PRBYTE
 	lda #"/"
 	jsr COUT
 	lda _stash+1
+	sta :corruptme+2
 	jsr PRBYTE
 	lda _stash
+	sta :corruptme+1
 	jsr PRBYTE
+* CORRUPTOR!
+:kloop	lda KEY
+	cmp #"c"	; REMOVE DEBUG
+	bne :nocorrupt
+	jsr GetRandTrash
+:corruptme	stal $060000
+	inc $c034
+	sta STROBE	; we only clear if 'c' is hit
+	inc _stash	; \
+	beq :noroll	;  |- INX
+	inc _stash+1        ; /
+:noroll
+:nocorrupt
 
 	clc
 	xce
@@ -226,17 +384,76 @@ PrintTestCurrent	pha
 	pla
 	rts
 	mx %11
+PRBIN	pha
+	phx
+	ldx #8
+:loop	asl
+	pha
+	bcc :zero
+:one	lda #"1"
+	jsr COUT
+	bra :ok
+:zero	lda #"0"
+	jsr COUT
+:ok	pla
+	dex
+	bne :loop
+	plx
+	pla
+	rts
 
+Pauser
+	PRINTXY #44;#11;Mesg_Waiting
+	ldy #60
+	ldx TestDelay
+	jsr PrintTimerVal	; inaugural print before waiting 1 sec
+:secondloop
+:wait	ldal $e1c019
+	bpl :wait
+:wait2	ldal $e1c019
+	bmi :wait2
+	dey
+	bne :secondloop
+	dex
+	beq :donepause
+	jsr PrintTimerVal
+	ldy #60
+	bra :secondloop
+:donepause	
+	PRINTXY #44;#11;Mesg_Blank
+	rts
+PrintTimerVal
+	phx
+	phy
+	txa 
+	GOXY #54;#11
+	ply
+	plx
+	txa
+	jsr PRBYTE
+	rts
 
+**************************************************
+* Awesome PRNG thx to White Flame (aka David Holz)
+**************************************************
+GetRandTrash		; USE ONLY WITH CORRUPTOR
+	lda _randomTrashByte
+	beq :doEor
+	asl
+	bcc :noEor
+:doEor	eor #$1d
+:noEor	sta _randomTrashByte
+	rts
+_randomTrashByte	db 0
 
 * DEFAULTS
 StartBank	db  #$06
-EndBank	db  #$7F
+EndBank	db  #$1F
 CurBank	db  #0
 StartAddr	dw  #$0000
 EndAddr	dw  #$FFFF
 TestValue	dw  #$00
-TestDelay	dw  #$05
+TestDelay	dw  #$03
 
 Menu_DrawOptions	sta $0
 	sty $1
@@ -546,31 +763,31 @@ Menu_NextItem
 
 
 MainMenuDefs
-:StartBank	hex 0D,0A ; x,y
+:StartBank	hex 13,07 ; x,y
 	db 01	; 0=char/1=hex input 2=Menu JSR
 	db 01	; memory size (bytes), 0=char/1=hex input
 	da StartBank	; variable storage 
-:EndBank	hex 0D,0B	; x,y
+:EndBank	hex 13,08	; x,y
 	db 01	; 0=char/1=hex input 2=Menu JSR
 	db 01	; memory size (bytes), 0=char/1=hex input
 	da EndBank	; variable storage 
-:StartAddr	hex 0D,0D	; x,y
+:StartAddr	hex 13,0A	; x,y
 	db 01	; 0=char/1=hex input 2=Menu JSR
 	db 02	; memory size (bytes), 0=char/1=hex input
 	da StartAddr	; variable storage 
-:EndAddr	hex 0D,0E	; x,y
+:EndAddr	hex 13,0B	; x,y
 	db 01	; 0=char/1=hex input 2=Menu JSR
 	db 02	; memory size (bytes), 0=char/1=hex input
 	da EndAddr	; variable storage 
-:TestByte	hex 0D,10	; x,y
+:TestByte	hex 13,0D	; x,y
 	db 01	; 0=char/1=hex input 2=Menu JSR
 	db 01	; memory size (bytes), 0=char/1=hex input
 	da TestValue	; variable storage 
-:TestDelay	hex 0D,11	; x,y
+:TestDelay	hex 13,0E	; x,y
 	db 01	; 0=char/1=hex input 2=Menu JSR
 	db 01	; memory size (bytes), 0=char/1=hex input
 	da TestDelay	; variable storage 
-:BeginTest	hex 0D,13	; x,y
+:BeginTest	hex 13,11	; x,y
 	db 02	; 0=char/1=hex input 2=Menu JSR
 	db MenuStr_BeginTestL ; menu string length
 	da MenuStr_BeginTest ; string storage 
@@ -585,23 +802,32 @@ MenuStr_JSR	da BeginTest	; MUST PRECEDE MENU STRING!  Yes, it's magicly inferred
 MenuStr_BeginTest	asc "BEGIN TEST"
 MenuStr_BeginTestL  equ #*-MenuStr_BeginTest
 MenuStr_BeginTestE	db 00
-MainMenuStrs
-	asc "         *********************** ",$8D,$00
-	asc "        **                     **",$8D,$00
-	asc "        **  Mini Memory Tester **",$8D,$00
-	asc "        **    Reactive Micro   **",$8D,$00
-	asc "        **        (beta)       **",$8D,$00
-	asc "        **                     **",$8D,$00
-	asc "         *********************** ",$8D,$00
-	asc $8D,$8D,$8D,$00
-	asc " Start BANK:  ",$8D,$00
-	asc "   End BANK:  ",$8D,$8D,$00
-	asc " Start ADDR:  ",$8D,$00
-	asc "   End ADDR:  ",$8D,$8D,$00
-	asc "  Test Byte:  ",$8D,$00
-	asc " Test Delay:  ",$8D,$8D,$8D,$8D,$8D,$00
-	asc "         USE ARROW KEYS TO MOVE",8D,$00
-	asc "        USE ENTER TO SELECT/EDIT",$00
+MainMenuStrs	
+	asc "  ____________________________________________________________________________",$8D,$00
+	asc " ",$1B,'ZGGGGGGGGGGGGGGGGGGGGGGGGGGG\'," Mini Memory Tester ",'\GGGGGGGGGGGGG\'," ALPHA ",'\GGGGG_',$18,$8D,$00
+	asc " ",$1B,'ZWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVW'," ReactiveMicro ",'VW_',$18,$8D,00
+	asc " ",$1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,$8D,00
+	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",' \G_',"Test Settings",'ZG\ ',"                                                     ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"    Start BANK:                                                             ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"      End BANK:                                                             ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"    Start ADDR:                                                             ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"      End ADDR:                                                             ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"     Test Byte:                                                             ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"    Test Delay:                                                             ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"           USE ARROW KEYS TO MOVE  -  USE ENTER TO SELECT/EDIT              ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"____________________________________________________________________________",'_',$18,$8D,00
+
+*	asc "     ABCDEFGHIZKLMNOPQRSTUVWXYZ ",$8D,$00
+*	asc $1B,'     ABCDEFGHIZKLMNOPQRSTUVWXYZ ',$1B,$8D,$00
 	
 	hex 00,00
 	
@@ -619,6 +845,7 @@ WaitKey
 	rts
 
 	put strings.s
+BorderColor	db 0
 	ds \
 _stash	ds 255
 	ds \
