@@ -250,20 +250,11 @@ BeginTestPass	PRINTXY  #44;#08;Mesg_TestPass
 	xce	; WRITE END
 
 
-
-
-
-:kloop	lda KEY
-	bmi :gotOne
 	jsr Pauser	; PAUSE
-	jmp BeginTestPass
-:gotOne	sta STROBE
-	cmp #"b"	; REMOVE DEBUG
-	bne :nobreak
-	brk $75
-:nobreak
 	lda BorderColor
 	sta $C034
+	jmp BeginTestPass
+
 	rts
 
 _testIteration	ds 8
@@ -373,9 +364,15 @@ PrintTestCurrent	pha
 	inc _stash	; \
 	beq :noroll	;  |- INX
 	inc _stash+1        ; /
+:nocorrupt	cmp #"p"A	; check lower p
+* @TODO make tolower for the comparisons
+	bne :nopause
+	sta STROBE
+:nope	lda KEY
+	bpl :nope
+	sta STROBE
+:nopause
 :noroll
-:nocorrupt
-
 	clc
 	xce
 	rep $10
@@ -405,7 +402,6 @@ PRBIN	pha
 Pauser
 	PRINTXY #44;#11;Mesg_Waiting
 	ldy #60
-	brk $02
 	ldx TestDelay
 	beq :nopauseforyou
 	jsr PrintTimerVal	; inaugural print before waiting 1 sec
@@ -423,6 +419,7 @@ Pauser
 	bra :secondloop
 :donepause	
 	PRINTXY #44;#11;Mesg_Blank
+:nopauseforyou
 	rts
 PrintTimerVal
 	phx
