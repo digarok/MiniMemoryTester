@@ -405,7 +405,9 @@ PRBIN	pha
 Pauser
 	PRINTXY #44;#11;Mesg_Waiting
 	ldy #60
+	brk $02
 	ldx TestDelay
+	beq :nopauseforyou
 	jsr PrintTimerVal	; inaugural print before waiting 1 sec
 :secondloop
 :wait	ldal $e1c019
