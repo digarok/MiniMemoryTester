@@ -364,7 +364,7 @@ PrintTestCurrent	pha
 	inc _stash	; \
 	beq :noroll	;  |- INX
 	inc _stash+1        ; /
-:nocorrupt	cmp #"p"A	; check lower p
+:nocorrupt	cmp #"p"	; check lower p
 * @TODO make tolower for the comparisons
 	bne :nopause
 	sta STROBE
@@ -475,6 +475,8 @@ Menu_DrawOptions	sta $0
 	beq :hexItem
 	cmp #2
 	beq :jsrItem
+	cmp #3
+	beq :listItem
 :charItem	
 :hexItem	iny
 	lda ($0),y	; get len
@@ -492,6 +494,7 @@ Menu_DrawOptions	sta $0
 	cpy _menuHexIdx
 	bne :prloop
 	bra :nextMenuItem
+:listItem	bra :nextMenuItem
 :jsrItem
 	iny
 	iny
@@ -561,7 +564,7 @@ Menu_UndrawSelected
 	bra :rightBracket
 
 :notHex	cmp #2
-	bne :wtf
+	bne :notAction
 	iny 
 	lda ($0),y
 
@@ -571,6 +574,18 @@ Menu_UndrawSelected
 	tax
 	bra :rightBracket
 
+
+:notAction
+	cmp #3
+	bne :wtf
+	iny 
+	lda ($0),y
+
+	inc
+	clc
+	adc _menuSelectedX1
+	tax
+	bra :rightBracket
 
 :wtf
 
@@ -634,7 +649,7 @@ Menu_DrawSelected
 	bra :rightBracket
 
 :notHex	cmp #2
-	bne :wtf
+	bne :notAction
 	iny 
 	lda ($0),y
 
@@ -644,6 +659,18 @@ Menu_DrawSelected
 	tax
 	bra :rightBracket
 
+
+:notAction
+	cmp #3
+	bne :wtf
+	iny 
+	lda ($0),y
+
+	inc
+	clc
+	adc _menuSelectedX1
+	tax
+	bra :rightBracket
 
 :wtf
 
@@ -659,22 +686,47 @@ Menu_DrawSelected
 	jsr COUT
 
 	rts
-_menuSelectedX1	db 0	; no x2 cuz we be addin'
+_menuSelectedX1	db 0	; no x2 cuz we be addin' dat offset
 _menuSelectedY	db 0
 
+MenuOption_Char	equ #0
+MenuOption_Hex	equ #1
+MenuOption_Action	equ #2
+MenuOption_List	equ #3
+MenuOption_Bool	equ #4
+Menu_TypeTable	da  Menu_TypeChar,Menu_TypeHex,Menu_TypeAction,Menu_TypeList,Menu_TypeBool
+
+* $0 = ptr->MenuDefs
 Menu_HandleSelection 
 	lda #MainMenuDefs
 	ldy #>MainMenuDefs
 	sta $0
 	sty $1
 	lda #0
-	ldx Menu_ItemSelected
-:check	beq :foundIdx
+	ldx Menu_ItemSelected ; odd choice to load again, but preps flags (z) how i likes it
+:check	beq :foundIdx	; <-  a=struct offset
 	clc
 	adc #6	; "struct" size
-	dex 
+	dex
 	bra :check
-:foundIdx	sta _stash
+
+:foundIdx	pha
+	tay
+	iny	;\ 
+	iny	; \  
+	lda ($0),y	;  > get MenuOption_Type, set up for jmp table
+	asl	; /
+	tax	;/ 
+	pla
+	jmp (Menu_TypeTable,x)
+	
+Menu_TypeChar	rts
+Menu_TypeList	rts
+Menu_TypeBool	rts
+	
+
+Menu_TypeHex	
+	pha
 	tay
 	lda ($0),y
 	tax
@@ -682,17 +734,10 @@ Menu_HandleSelection
 	lda ($0),y
 	tay
 	jsr GoXY
-*** HERE
-	ldy _stash
-	iny
-	iny
-	lda ($0),y
-	bne :notChar
-
-*TODO
-:notChar	cmp #1
-	bne :notHex
-	iny
+	pla
+	clc
+	adc #3	; ->memory size
+	tay
 	lda ($0),y
 	asl	;*2
 	pha
@@ -707,10 +752,7 @@ Menu_HandleSelection
 	jsr GetHex
 	rts
 
-
-:notHex	cmp #2
-	bne :wtf
-	iny	; skip len byte
+Menu_TypeAction	iny	; skip len byte
 	iny
 	lda ($0),y
 	sta :ACTION+1
@@ -735,9 +777,6 @@ Menu_HandleSelection
 
 
 
-:wtf
-	rts
-
 
 
 
@@ -751,8 +790,7 @@ Menu_PrevItem	dec Menu_ItemSelected
 :noflip	rts
 
 
-Menu_NextItem	
-	inc Menu_ItemSelected
+Menu_NextItem	inc Menu_ItemSelected
 	lda Menu_ItemSelected
 	cmp #MainMenuItems
 	bcc :noflip
@@ -762,32 +800,36 @@ Menu_NextItem
 
 
 MainMenuDefs
-:StartBank	hex 13,07 ; x,y
-	db 01	; 0=char/1=hex input 2=Menu JSR
-	db 01	; memory size (bytes), 0=char/1=hex input
+:StartBank	hex 13,06 ; x,y
+	db MenuOption_Hex	; 1=hex input
+	db 01	; memory size (bytes)
 	da StartBank	; variable storage 
-:EndBank	hex 13,08	; x,y
-	db 01	; 0=char/1=hex input 2=Menu JSR
-	db 01	; memory size (bytes), 0=char/1=hex input
+:EndBank	hex 13,07	; x,y
+	db MenuOption_Hex	; 1=hex input
+	db 01	; memory size (bytes)
 	da EndBank	; variable storage 
-:StartAddr	hex 13,0A	; x,y
-	db 01	; 0=char/1=hex input 2=Menu JSR
-	db 02	; memory size (bytes), 0=char/1=hex input
+:StartAddr	hex 13,09	; x,y
+	db MenuOption_Hex	; 1=hex input
+	db 02	; memory size (bytes)
 	da StartAddr	; variable storage 
-:EndAddr	hex 13,0B	; x,y
-	db 01	; 0=char/1=hex input 2=Menu JSR
-	db 02	; memory size (bytes), 0=char/1=hex input
+:EndAddr	hex 13,0A	; x,y
+	db MenuOption_Hex	; 1=hex input
+	db 02	; memory size (bytes)
 	da EndAddr	; variable storage 
+:TestType	hex 13,0C	; x,y
+	db MenuOption_List	; 3=list input
+	db 08	; max len size (bytes), 3=option list
+	da TestType	; params definition & storage 
 :TestByte	hex 13,0D	; x,y
-	db 01	; 0=char/1=hex input 2=Menu JSR
-	db 01	; memory size (bytes), 0=char/1=hex input
+	db MenuOption_Hex	; 1=hex input
+	db 01	; memory size (bytes)
 	da TestValue	; variable storage 
 :TestDelay	hex 13,0E	; x,y
-	db 01	; 0=char/1=hex input 2=Menu JSR
-	db 01	; memory size (bytes), 0=char/1=hex input
+	db MenuOption_Hex	; 1=hex input
+	db 01	; memory size (bytes)
 	da TestDelay	; variable storage 
-:BeginTest	hex 13,11	; x,y
-	db 02	; 0=char/1=hex input 2=Menu JSR
+:BeginTest	hex 0B,12	; x,y
+	db MenuOption_Action ; 2=action
 	db MenuStr_BeginTestL ; menu string length
 	da MenuStr_BeginTest ; string storage 
 MainMenuLen	equ *-MainMenuDefs
@@ -795,7 +837,14 @@ MainMenuItems	equ MainMenuLen/6
 MainMenuEnd	dw 0000
 Menu_ItemSelected	db  0
 
-
+TestType	db 00	; actual CONST val 
+	da _TestTypes
+_TestTypes	asc "BYTE",$00
+	asc "WORD",$00
+	asc "RANDBYTE",$00
+	asc "RANDBYTE",$00
+	asc "CHECKERS",$00
+	asc "BANK",$00
 
 MenuStr_JSR	da BeginTest	; MUST PRECEDE MENU STRING!  Yes, it's magicly inferred. (-2)
 MenuStr_BeginTest	asc "BEGIN TEST"
@@ -806,25 +855,27 @@ MainMenuStrs
 	asc " ",$1B,'ZGGGGGGGGGGGGGGGGGGGGGGGGGGG\'," Mini Memory Tester ",'\GGGGGGGGGGGGG\'," ALPHA ",'\GGGGG_',$18,$8D,$00
 	asc " ",$1B,'ZWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVW'," ReactiveMicro ",'VW_',$18,$8D,00
 	asc " ",$1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,$8D,00
-	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",' \G_',"Test Settings",'ZG\ ',"                                                     ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"    Start BANK:                                                             ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"      End BANK:                                                             ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"    Start ADDR:                                                             ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"      End ADDR:                                                             ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"     Test Byte:                                                             ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"    Test Delay:                                                             ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"                                                                            ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"           USE ARROW KEYS TO MOVE  -  USE ENTER TO SELECT/EDIT              ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",' \GGG_',"Test Settings",'ZGGG\ ',"          ABCDEFGHIZKLMNOPQRSTUVWXYZ             ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"          ",'ABCDEFGHIZKLMNOPQRSTUVWXYZ',"             ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_'," Start BANK:           ",'Z',"                                           ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_',"   End BANK:           ",'Z',"                                           ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_'," Start ADDR:           ",'Z',"                                           ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_',"   End ADDR:           ",'Z',"                                           ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_',"  Test Type:           ",'Z',"                                           ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_',"  Test Byte:           ",'Z',"                                           ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_'," Test Delay:           ",'Z',"                                           ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
+	asc " ",$1B,'Z',"  ",'LLLLLLLLLLLLLLLLLLLLLLLLL',"                                    ",'_',$18,$8D,00
 	asc " ",$1B,'Z',"____________________________________________________________________________",'_',$18,$8D,00
 
+*	asc " ",$1B,'Z',"           USE ARROW KEYS TO MOVE  -  USE ENTER TO SELECT/EDIT              ",'_',$18,$8D,00
 *	asc "     ABCDEFGHIZKLMNOPQRSTUVWXYZ ",$8D,$00
 *	asc $1B,'     ABCDEFGHIZKLMNOPQRSTUVWXYZ ',$1B,$8D,$00
 	
