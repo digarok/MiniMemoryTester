@@ -477,8 +477,27 @@ Menu_DrawOptions	sta $0
 	beq :jsrItem
 	cmp #3
 	beq :listItem
+	cmp #4
+	beq :boolItem
 :charItem	
-:hexItem	iny
+:boolItem	
+:hexItem	jsr Menu_DrawOptionHex
+	bra :nextMenuItem
+:listItem	jsr Menu_DrawOptionList
+	bra :nextMenuItem
+:jsrItem	jsr Menu_DrawOptionAction
+	bra :nextMenuItem
+
+:nextMenuItem
+	lda _menuOptionPtr
+	clc
+	adc #6	; len of "struct"
+	sta _menuOptionPtr
+	bra :drawOption
+:menuDone
+	rts
+
+Menu_DrawOptionHex 	iny
 	lda ($0),y	; get len
 	sta _menuHexIdx
 	iny	
@@ -493,37 +512,42 @@ Menu_DrawOptions	sta $0
 	iny
 	cpy _menuHexIdx
 	bne :prloop
-	bra :nextMenuItem
-:listItem	bra :nextMenuItem
-:jsrItem
-	iny
+	rts
+
+Menu_DrawOptionAction iny
 	iny
 	lda ($0),y
 	tax
 	iny
 	lda ($0),y
 	tay
-
-	lda $0	; whoops.. save zp ptrs that printstring uses :(
-	pha
-	lda $1
-	pha
-
 	txa
 	jsr PrintString
-	pla
-	sta $1
-	pla
-	sta $0
-
-:nextMenuItem
-	lda _menuOptionPtr
-	clc
-	adc #6	; len of "struct"
-	sta _menuOptionPtr
-	bra :drawOption
-:menuDone
 	rts
+
+Menu_DrawOptionList iny	; point to da
+	iny
+	lda ($0),y
+	sta $2
+	iny
+	lda ($0),y
+	sta $3	; now ($2) points to item list structure
+	ldy #0
+	lda ($2),y	; selected index
+	asl
+	inc
+	inc	; add 2 to reach table of addresses
+	tay
+	lda ($2),y
+	pha
+
+	iny
+	lda ($2),y
+	tay
+	pla
+	jsr PrintString
+	rts
+
 _menuHexIdx	dw  0
 _menuOptionPtr	dw  00
 Menu_UndrawSelected	
@@ -606,6 +630,9 @@ Menu_UndrawSelected
 	bra :undrawLoop
 :stop
 	rts
+
+
+
 Menu_DrawSelected	
 	lda #MainMenuDefs
 	ldy #>MainMenuDefs
@@ -721,12 +748,10 @@ Menu_HandleSelection
 	jmp (Menu_TypeTable,x)
 	
 Menu_TypeChar	rts
-Menu_TypeList	rts
 Menu_TypeBool	rts
 	
 
-Menu_TypeHex	
-	pha
+Menu_TypeHex	pha
 	tay
 	lda ($0),y
 	tax
@@ -775,6 +800,7 @@ Menu_TypeAction	iny	; skip len byte
 	rts
 
 
+Menu_TypeList	rts
 
 
 
@@ -820,7 +846,7 @@ MainMenuDefs
 	db MenuOption_List	; 3=list input
 	db 08	; max len size (bytes), 3=option list
 	da TestType	; params definition & storage 
-:TestByte	hex 13,0D	; x,y
+:TestValue	hex 13,0D	; x,y
 	db MenuOption_Hex	; 1=hex input
 	db 01	; memory size (bytes)
 	da TestValue	; variable storage 
@@ -837,14 +863,19 @@ MainMenuItems	equ MainMenuLen/6
 MainMenuEnd	dw 0000
 Menu_ItemSelected	db  0
 
+
+* 00 - Byte : Selected Value
+* 01 - Byte : Number of values
+* 02... - Words : Table of Addresses of possible values
 TestType	db 00	; actual CONST val 
-	da _TestTypes
-_TestTypes	asc "BYTE",$00
-	asc "WORD",$00
-	asc "RANDBYTE",$00
-	asc "RANDBYTE",$00
-	asc "CHECKERS",$00
-	asc "BANK",$00
+	db 06	; number of possible values
+	da _TestType_0,_TestType_1,_TestType_2,_TestType_3,_TestType_4,_TestType_5,00,00
+_TestType_0	asc "BYTE",$00
+_TestType_1	asc "WORD",$00
+_TestType_2	asc "RANDBYTE",$00
+_TestType_3	asc "RANDWORD",$00
+_TestType_4	asc "CHECKERS",$00
+_TestType_5	asc "BANK",$00
 
 MenuStr_JSR	da BeginTest	; MUST PRECEDE MENU STRING!  Yes, it's magicly inferred. (-2)
 MenuStr_BeginTest	asc "BEGIN TEST"
