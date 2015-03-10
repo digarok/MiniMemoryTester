@@ -62,11 +62,11 @@ PrintStringsX	stx _printstringsx_horiz
 _printstringsx_horiz db 00
 
 * PrintString (A=Low Byte,  Y=High Byte)
-PrintString	sta $0
-	sty $1
+PrintString	sta :loop+1
+	sty :loop+2
 
 	ldy #0
-:loop	lda ($0),y
+:loop	lda $FFFF,y	; dummy bytes
 	beq :done
 	jsr COUT
 	iny
