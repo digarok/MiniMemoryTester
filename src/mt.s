@@ -17,9 +17,14 @@ Init
 
 	lda $C034	; save border color
 	sta BorderColor
-	
+
+	lda #MainMenuDefs
+	ldx #>MainMenuDefs
+	jsr Menu_InitMenu
 Main	
-:menuLoop	jsr Menu_Draw
+:menuLoop	jsr DrawMenuBackground
+	jsr DrawConsole
+	jsr DrawRomMessage
 :menuNoDrawLoop	jsr Menu_UndrawSelected
 	jsr Menu_DrawSelected
 	jsr WaitKey
@@ -27,19 +32,92 @@ Main
 	bne :check1
 :enter	jsr Menu_HandleSelection
 	bra :menuLoop
-
 :check1	cmp #$8B	; UP
 	bne :check2
 	jsr Menu_PrevItem
 	bra :menuNoDrawLoop
-
 :check2	cmp #$8A	; DOWN
 	bne :noKey
 	jsr Menu_NextItem
 	bra :menuNoDrawLoop
-
 :noKey	bra :menuLoop
 * LOOOOOOOOOP ^^^^^^
+
+
+DrawMenuBackground	jsr HOME
+	lda #MainMenuStrs
+	ldy #>MainMenuStrs
+	ldx #00	; horiz pos
+	jsr PrintStringsX
+	lda #MainMenuDefs
+	ldy #>MainMenuDefs
+	jsr Menu_DrawOptions
+	rts
+DrawConsole
+	ldx #30
+	ldy #12
+	lda #8
+	jsr PrintConsole
+	rts
+
+DrawRomMessage	LOG #Mesg_Rom
+	jsr WinConsole
+	lda GSROM
+	jsr PRBYTE
+	lda #$8D	; scroll it up a bit
+	jsr COUT
+	jsr COUT
+	jsr COUT
+	jsr COUT
+	jsr COUT
+	jsr COUT
+	jsr WinFull
+	rts
+
+LOG	MAC
+	lda #]1
+	ldy #>]1
+	jsr ConsoleLog
+	<<<
+
+* Write out to console window
+ConsoleLog	pha
+	phy
+	jsr WinConsole
+	lda #0	;settings to bottom-left of window
+	sta $24
+	lda #20
+	sta $25
+	jsr VTAB
+	lda #$8D	;pre-fix CR
+	jsr COUT
+	ply
+	pla
+	jsr PrintString
+	jsr WinFull
+	rts
+
+* Set console windowing
+WinConsole	lda #32	
+	sta $20	;left edge
+	lda #43	
+	sta $21	;width
+	lda #13	
+	sta $22	;top edge
+	lda #21	
+	sta $23	;bottom edge
+	rts
+
+* Restore full screen windowing
+WinFull	stz $20
+	stz $22
+	lda #80
+	sta $21
+	lda #24
+	sta $23
+	rts
+
+
 
 
 
@@ -62,116 +140,24 @@ QuitParm	dfb 4	; number of parameters
 
 Error	brk $00	; shouldn't be here either
 
-* Pass desired length in A
-GetHex	sta _gethex_maxlen
-	stx _gethex_resultptr
-	sty _gethex_resultptr+1
-	stz _gethex_current
 
-:input	jsr RDKEY
-	cmp #$9B	;esc = abort
-	bne :notesc
-	rts
-:notesc	cmp #"9"+1
-	bcs :notNum	;bge > 9
-	cmp #"0"
-	bcc :badChar	;
-	sec
-	sbc #"0"
-	bra :storeInput
-:notNum	cmp #"a"
-	bcc :notLower
-	sec
-	sbc #$20	; ToUpper
-:notLower	cmp #"A"
-	bcc :badChar
-	cmp #"F"+1
-	bcs :badChar
-:gotHex	
-	sec
-	sbc #"A"-10
-:storeInput	
-	pha
-	jsr PRHEX
-	pla
-	ldy _gethex_current
-	sta _gethex_buffer,y
-	iny
-	cpy #_gethex_internalmax
-	bge :internalmax
-	cpy _gethex_maxlen
-	bge :passedmax
-	sty _gethex_current
-	bra :input
-:internalmax
-:passedmax	
-	lda _gethex_resultptr
-	sta $0
-	lda _gethex_resultptr+1
-	sta $1
-	ldx #0
-	ldy #0
-:copyBuffer	lda _gethex_buffer,x
-	asl	; move to upper nibble
-	asl
-	asl
-	asl
-	sta ($0),y	; store
-	inx
-	lda _gethex_buffer,x
-	ora ($0),y
-	sta ($0),y
-	iny
-	inx
-	cpx _gethex_maxlen
-	bcc :copyBuffer
-	rts
-
-:badChar	bra :input
-
-_gethex_internalmax equ 8
-_gethex_resultptr   da 0000
-_gethex_maxlen	db 1
-_gethex_current	db 0
-_gethex_buffer	ds _gethex_internalmax 
-PrHexChar	jsr HexCharForByte
-
-HexCharForByte
-	cmp #9
-	bcs :alpha
-:number	clc
-	adc #"0"
-	rts
-:alpha	clc
-	adc #"A"
-	rts
-
-
-Menu_Draw	jsr HOME
-	lda #MainMenuStrs
-	ldy #>MainMenuStrs
-	ldx #00	; horiz pos
-	jsr PrintStringsX
-	lda #MainMenuDefs
-	ldy #>MainMenuDefs
-	jsr Menu_DrawOptions
-	rts
-
-BeginTest	stz _testIteration
+BeginTest	LOG Mesg_Starting
+	stz _testIteration
 	stz _testIteration+1
-	ldx #40
-	ldy #07
+	ldx #36
+	ldy #04
 	lda #5
 	jsr PrintBox30
-BeginTestPass	PRINTXY  #44;#08;Mesg_TestPass
+
+
+BeginTestPass	PRINTXY  #38;#05;Mesg_TestPass
 	inc _testIteration
 	bne :noroll
 	inc _testIteration+1
 :noroll	lda _testIteration+1
-	jsr PRBYTE
-	lda _testIteration
-	jsr PRBYTE
-	PRINTXY  #44;#10;Mesg_Writing
+	ldx _testIteration
+	jsr PRNTAX
+	PRINTXY  #38;#7;Mesg_Writing
 
 	clc	; WRITE START
 	xce
@@ -207,7 +193,7 @@ BeginTestPass	PRINTXY  #44;#08;Mesg_TestPass
 
 	jsr Pauser	; PAUSE
 
-	PRINTXY  #44;#10;Mesg_Reading ; READ PREP
+	PRINTXY  #38;#7;Mesg_Reading ; READ PREP
 
 	clc	; READ START
 	xce
@@ -259,6 +245,9 @@ BeginTestPass	PRINTXY  #44;#08;Mesg_TestPass
 
 _testIteration	ds 8
 UpdateScanInterval  equ #$3000
+Mesg_Rom	asc "Apple IIgs ROM ",00
+Mesg_UserManual	asc "USE ARROW KEYS TO MOVE  -  USE ENTER TO SELECT/EDIT",00
+Mesg_Starting	asc $8D,"Starting Test",$8D,00
 Mesg_Waiting	asc "Waiting: ",00
 Mesg_Writing	asc "Writing: ",00
 Mesg_Reading	asc "Reading: ",00
@@ -270,6 +259,10 @@ Mesg_Blank	asc "                 ",00
 Mesg_BoxTop30	asc $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,$8D,00
 Mesg_BoxMid30	asc $1B,'Z',"                            ",'_',$18,$8D,$00
 Mesg_BoxBot30	asc $1B,'Z',"____________________________",'_',$18,$8D,$00
+*Mesg_ConsoleTop	asc $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,$8D,00
+Mesg_ConsoleTop	asc $1B,'ZLLLLLLLLLLLLLLL',$18,' Console Log ',$1B,'LLLLLLLLLLLLLLLLL_',$18,$8D,00
+Mesg_ConsoleMid	asc $1B,'Z',"                                             ",'_',$18,$8D,00
+Mesg_ConsoleBot	asc $1B,'Z',"_____________________________________________",'_',$18,$8D,00
 
 * x, y, a=height
 PrintBox30	stx _prbox_x
@@ -292,12 +285,48 @@ PrintBox30	stx _prbox_x
 	ldy #>Mesg_BoxBot30
 	jsr PrintString
 	rts
+* x, y, a=height
+PrintConsole	stx _prbox_x
+	sta _prbox_height
+	jsr GoXY
+	lda #Mesg_ConsoleTop
+	ldy #>Mesg_ConsoleTop
+	jsr PrintString
+:midloop	ldx _prbox_x
+	stx $24
+	lda #Mesg_ConsoleMid
+	ldy #>Mesg_ConsoleMid
+	jsr PrintString
+	dec _prbox_height
+	bne :midloop
+
+	ldx _prbox_x
+	stx $24
+	lda #Mesg_ConsoleBot
+	ldy #>Mesg_ConsoleBot
+	jsr PrintString
+	rts
 _prbox_x	db 0
 _prbox_height	db 0
 	
 
-
+* called with short M,  long X
 PrintTestError	
+	rts
+	sec
+	xce
+	sep $30
+	jsr WinConsole
+	lda #Mesg_Error1
+	ldy #>Mesg_Error1
+	jsr PrintString
+	jsr WinFull
+	clc
+	xce
+	rep $10
+	rts
+
+		;<---- CUT
 	sec
 	xce
 	ldx #42
@@ -313,9 +342,8 @@ PrintTestError
 	lda #"/"
 	jsr COUT
 	lda _stash+3
-	jsr PRBYTE
-	lda _stash+2
-	jsr PRBYTE
+	ldx _stash+2
+	jsr PRNTAX
 	GOXY #57;#16
 	lda _stash+1
 	jsr PRBYTE
@@ -341,7 +369,7 @@ PrintTestCurrent	pha
 	stx _stash	; save real X
 	sec
 	xce
-	GOXY #54;#10
+	GOXY #48;#7
 	lda CurBank
 	sta :corruptme+3
 	jsr PRBYTE
@@ -400,7 +428,7 @@ PRBIN	pha
 	rts
 
 Pauser
-	PRINTXY #44;#11;Mesg_Waiting
+	PRINTXY #38;#8;Mesg_Waiting
 	ldy #60
 	ldx TestDelay
 	beq :nopauseforyou
@@ -418,14 +446,14 @@ Pauser
 	ldy #60
 	bra :secondloop
 :donepause	
-	PRINTXY #44;#11;Mesg_Blank
+	PRINTXY #38;#8;Mesg_Blank
 :nopauseforyou
 	rts
 PrintTimerVal
 	phx
 	phy
 	txa 
-	GOXY #54;#11
+	GOXY #48;#8
 	ply
 	plx
 	txa
@@ -454,375 +482,12 @@ EndAddr	dw  #$FFFF
 TestValue	dw  #$00
 TestDelay	dw  #$03
 
-Menu_DrawOptions	sta $0
-	sty $1
-	stz _menuOptionPtr
-:drawOption
-	ldy _menuOptionPtr
-	lda ($0),y
-	beq :menuDone
-	tax
-	iny
-	lda ($0),y
-	tay
-	jsr GoXY
-	ldy _menuOptionPtr
-	iny
-	iny
-	lda ($0),y
-	beq :charItem
-	cmp #1
-	beq :hexItem
-	cmp #2
-	beq :jsrItem
-	cmp #3
-	beq :listItem
-	cmp #4
-	beq :boolItem
-:charItem	
-:boolItem	
-:hexItem	jsr Menu_DrawOptionHex
-	bra :nextMenuItem
-:listItem	jsr Menu_DrawOptionList
-	bra :nextMenuItem
-:jsrItem	jsr Menu_DrawOptionAction
-	bra :nextMenuItem
-
-:nextMenuItem
-	lda _menuOptionPtr
-	clc
-	adc #6	; len of "struct"
-	sta _menuOptionPtr
-	bra :drawOption
-:menuDone
-	rts
-
-Menu_DrawOptionHex 	iny
-	lda ($0),y	; get len
-	sta _menuHexIdx
-	iny	
-	lda ($0),y	; get da
-	sta $2	; storez
-	iny	
-	lda ($0),y	; get da
-	sta $3	; storez
-	ldy #0
-:prloop	lda ($2),y
-	jsr PRBYTE
-	iny
-	cpy _menuHexIdx
-	bne :prloop
-	rts
-
-Menu_DrawOptionAction iny
-	iny
-	lda ($0),y
-	tax
-	iny
-	lda ($0),y
-	tay
-	txa
-	jsr PrintString
-	rts
-
-Menu_DrawOptionList iny	; point to da
-	iny
-	lda ($0),y
-	sta $2
-	iny
-	lda ($0),y
-	sta $3	; now ($2) points to item list structure
-	ldy #0
-	lda ($2),y	; selected index
-	asl
-	inc
-	inc	; add 2 to reach table of addresses
-	tay
-	lda ($2),y
-	pha
-
-	iny
-	lda ($2),y
-	tay
-	pla
-	jsr PrintString
-	rts
-
-_menuHexIdx	dw  0
-_menuOptionPtr	dw  00
-Menu_UndrawSelected	
-	lda #MainMenuDefs
-	ldy #>MainMenuDefs
-	sta $0
-	sty $1
-	stz _stash
-
-:undrawLoop	ldy _stash	; struct ptr
-	lda ($0),y
-	beq :stop
-	dec	; x-- (left bracket)
-	sta _menuSelectedX1
-	iny
-	lda ($0),y
-	sta _menuSelectedY
-	iny 
-	lda ($0),y
-	bne :notChar
-	iny
-	lda ($0),y
-	inc	;doit
-	clc
-	adc _menuSelectedX1
-	tax
-	bra :rightBracket
-
-:notChar	cmp #1
-	bne :notHex
-	iny 
-	lda ($0),y
-	asl
-	inc	;doit
-	clc
-	adc _menuSelectedX1
-	tax
-	bra :rightBracket
-
-:notHex	cmp #2
-	bne :notAction
-	iny 
-	lda ($0),y
-
-	inc
-	clc
-	adc _menuSelectedX1
-	tax
-	bra :rightBracket
-
-
-:notAction
-	cmp #3
-	bne :wtf
-	iny 
-	lda ($0),y
-
-	inc
-	clc
-	adc _menuSelectedX1
-	tax
-	bra :rightBracket
-
-:wtf
-
-:rightBracket
-	ldy _menuSelectedY
-	jsr GoXY
-	lda #" "
-	jsr COUT
-:leftBracket	ldx _menuSelectedX1
-	ldy _menuSelectedY
-	jsr GoXY 
-	lda #" "
-	jsr COUT
-	lda _stash
-	clc
-	adc #6
-	sta _stash
-	bra :undrawLoop
-:stop
-	rts
-
-
-
-Menu_DrawSelected	
-	lda #MainMenuDefs
-	ldy #>MainMenuDefs
-	sta $0
-	sty $1
-	lda #0
-	ldx Menu_ItemSelected
-:check	beq :foundIdx
-	clc
-	adc #6	; "struct" size
-	dex 
-	bra :check
-
-:foundIdx	tay
-	lda ($0),y
-	dec	; x-- (left bracket)
-	sta _menuSelectedX1
-	iny
-	lda ($0),y
-	sta _menuSelectedY
-	iny 
-	lda ($0),y
-	bne :notChar
-	iny
-	lda ($0),y
-	inc	;doit
-	clc
-	adc _menuSelectedX1
-	tax
-	bra :rightBracket
-
-:notChar	cmp #1
-	bne :notHex
-	iny 
-	lda ($0),y
-	asl
-	inc	;doit
-	clc
-	adc _menuSelectedX1
-	tax
-	bra :rightBracket
-
-:notHex	cmp #2
-	bne :notAction
-	iny 
-	lda ($0),y
-
-	inc
-	clc
-	adc _menuSelectedX1
-	tax
-	bra :rightBracket
-
-
-:notAction
-	cmp #3
-	bne :wtf
-	iny 
-	lda ($0),y
-
-	inc
-	clc
-	adc _menuSelectedX1
-	tax
-	bra :rightBracket
-
-:wtf
-
-:rightBracket
-	ldy _menuSelectedY
-	jsr GoXY
-	lda #"]"
-	jsr COUT
-:leftBracket	ldx _menuSelectedX1
-	ldy _menuSelectedY
-	jsr GoXY 
-	lda #"["
-	jsr COUT
-
-	rts
-_menuSelectedX1	db 0	; no x2 cuz we be addin' dat offset
-_menuSelectedY	db 0
-
-MenuOption_Char	equ #0
-MenuOption_Hex	equ #1
-MenuOption_Action	equ #2
-MenuOption_List	equ #3
-MenuOption_Bool	equ #4
-Menu_TypeTable	da  Menu_TypeChar,Menu_TypeHex,Menu_TypeAction,Menu_TypeList,Menu_TypeBool
-
-* $0 = ptr->MenuDefs
-Menu_HandleSelection 
-	lda #MainMenuDefs
-	ldy #>MainMenuDefs
-	sta $0
-	sty $1
-	lda #0
-	ldx Menu_ItemSelected ; odd choice to load again, but preps flags (z) how i likes it
-:check	beq :foundIdx	; <-  a=struct offset
-	clc
-	adc #6	; "struct" size
-	dex
-	bra :check
-
-:foundIdx	pha
-	tay
-	iny	;\ 
-	iny	; \  
-	lda ($0),y	;  > get MenuOption_Type, set up for jmp table
-	asl	; /
-	tax	;/ 
-	pla
-	jmp (Menu_TypeTable,x)
-	
-Menu_TypeChar	rts
-Menu_TypeBool	rts
-	
-
-Menu_TypeHex	pha
-	tay
-	lda ($0),y
-	tax
-	iny
-	lda ($0),y
-	tay
-	jsr GoXY
-	pla
-	clc
-	adc #3	; ->memory size
-	tay
-	lda ($0),y
-	asl	;*2
-	pha
-	iny
-	lda ($0),y
-	pha
-	iny
-	lda ($0),y
-	tay
-	plx
-	pla
-	jsr GetHex
-	rts
-
-Menu_TypeAction	iny	; skip len byte
-	iny
-	lda ($0),y
-	sta :ACTION+1
-	iny
-	lda ($0),y
-	sta :ACTION+2
-	lda :ACTION+1
-	sec
-	sbc #2
-	sta :ACTION+1
-	bcs :copy
-	dec :ACTION+2
-:copy	ldx #0	; this is all so bad
-:ACTION	lda $ffff,x
-	sta :JSR+1,x
-	inx
-	cpx #2
-	bcc :ACTION
-:JSR	jsr $ffff
-	rts
-
-
-Menu_TypeList	rts
 
 
 
 
 
 
-
-Menu_PrevItem	dec Menu_ItemSelected
-	bpl :noflip
-	lda #MainMenuItems
-	dec
-	sta Menu_ItemSelected
-:noflip	rts
-
-
-Menu_NextItem	inc Menu_ItemSelected
-	lda Menu_ItemSelected
-	cmp #MainMenuItems
-	bcc :noflip
-	lda #0
-	sta Menu_ItemSelected
-:noflip	rts
 
 
 MainMenuDefs
@@ -883,30 +548,29 @@ MenuStr_BeginTestL  equ #*-MenuStr_BeginTest
 MenuStr_BeginTestE	db 00
 MainMenuStrs	
 	asc "  ____________________________________________________________________________",$8D,$00
-	asc " ",$1B,'ZGGGGGGGGGGGGGGGGGGGGGGGGGGG\'," Mini Memory Tester ",'\GGGGGGGGGGGGG\'," ALPHA ",'\GGGGG_',$18,$8D,$00
+	asc " ",$1B,'ZGGGGGGGGGGGGGGGGGGGGGGGGGGG\'," Mini Memory Tester ",'\GGGGGGGGGGGGG\'," v0.1a ",'\GGGGG_',$18,$8D,$00
 	asc " ",$1B,'ZWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVW'," ReactiveMicro ",'VW_',$18,$8D,00
 	asc " ",$1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",' \GGG_',"Test Settings",'ZGGG\ ',"          ABCDEFGHIZKLMNOPQRSTUVWXYZ             ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"          ",'ABCDEFGHIZKLMNOPQRSTUVWXYZ',"             ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_'," Start BANK:           ",'Z',"                                           ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_',"   End BANK:           ",'Z',"                                           ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_'," Start ADDR:           ",'Z',"                                           ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_',"   End ADDR:           ",'Z',"                                           ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_',"  Test Type:           ",'Z',"                                           ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_',"  Test Byte:           ",'Z',"                                           ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_'," Test Delay:           ",'Z',"                                           ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'_',"                       ",'Z',"                                           ",'_',$18,$8D,00
-	asc " ",$1B,'Z',"  ",'LLLLLLLLLLLLLLLLLLLLLLLLL',"                                    ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z \GGG_',"Test Settings",'ZGGG\ _',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"  Start BANK:            ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"    End BANK:            ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"  Start ADDR:            ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"    End ADDR:            ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"   Test Type:            ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"   Test Byte:            ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"  Test Delay:            ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"_________________________",'_',"                                                ",'_',$18,$8D,00
 	asc " ",$1B,'Z',"____________________________________________________________________________",'_',$18,$8D,00
 
-*	asc " ",$1B,'Z',"           USE ARROW KEYS TO MOVE  -  USE ENTER TO SELECT/EDIT              ",'_',$18,$8D,00
 *	asc "     ABCDEFGHIZKLMNOPQRSTUVWXYZ ",$8D,$00
 *	asc $1B,'     ABCDEFGHIZKLMNOPQRSTUVWXYZ ',$1B,$8D,$00
 	
@@ -926,6 +590,7 @@ WaitKey
 	rts
 
 	put strings.s
+	put menu.s
 BorderColor	db 0
 	ds \
 _stash	ds 255

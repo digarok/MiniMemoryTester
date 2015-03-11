@@ -57,3 +57,5 @@ SETCOL	equ $F864	; Sets the color for plotting in low-resolution block
 VTAB	equ $FC22	; Sets the cursor vertical position (from CV)
 VTABZ	equ $FC24	; Sets the cursor vertical position (0)
 VLINE	equ $F828	; Draws a vertical line of low-resolution blocks
+
+GSROM	equ $FB59	; should be int number of rom rev on Apple IIgs
