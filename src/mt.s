@@ -142,6 +142,7 @@ Error	brk $00	; shouldn't be here either
 
 
 BeginTest	LOG Mesg_Starting
+	stz _errorCounter
 	stz _testIteration
 	stz _testIteration+1
 	ldx #36
@@ -177,7 +178,9 @@ BeginTestPass	PRINTXY  #38;#05;Mesg_TestPass
 	cpy #UpdateScanInterval
 	bcc :bankstore
 	jsr PrintTestCurrent
-	ldy #0
+	bcc :noquit1
+	jmp :escpressed
+:noquit1	ldy #0
 	bra :bankstore
 :donebank	
 	ldy #0	; because i'm anal.. this makes counter align
@@ -187,7 +190,9 @@ BeginTestPass	PRINTXY  #38;#05;Mesg_TestPass
 	bcs :bankloop
 	dec CurBank	; so many bad hacks
 	jsr PrintTestCurrent ; print final score ;)
-	sep $10
+	bcc :noquit2
+	jmp :escpressed
+:noquit2	sep $10
 	sec
 	xce	; WRITE END
 
@@ -240,20 +245,21 @@ BeginTestPass	PRINTXY  #38;#05;Mesg_TestPass
 	lda BorderColor
 	sta $C034
 	jmp BeginTestPass
-
+:escpressed	sep $10
+	sec
+	xce
 	rts
 
 _testIteration	ds 8
-UpdateScanInterval  equ #$3000
+_errorCounter	ds 8
+UpdateScanInterval  equ #$1000
 Mesg_Rom	asc "Apple IIgs ROM ",00
 Mesg_UserManual	asc "USE ARROW KEYS TO MOVE  -  USE ENTER TO SELECT/EDIT",00
-Mesg_Starting	asc $8D,"Starting Test",$8D,00
+Mesg_Starting	asc $8D,"Starting Test",$8D,"Press P to pause, ESC to stop.",$8D,$8D,00
 Mesg_Waiting	asc "Waiting: ",00
 Mesg_Writing	asc "Writing: ",00
 Mesg_Reading	asc "Reading: ",00
-Mesg_Error1	asc " Error at: $",00
-Mesg_Error2	asc " Expected: $   %",$00
-Mesg_Error3	asc "     Read: $   %",$00
+Mesg_Errors	asc " Errors:  ",$00
 Mesg_TestPass	asc "   Pass:  ",00
 Mesg_Blank	asc "                 ",00
 Mesg_BoxTop30	asc $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,$8D,00
@@ -312,31 +318,23 @@ _prbox_height	db 0
 
 * called with short M,  long X
 PrintTestError	
-	rts
 	sec
 	xce
 	sep $30
+	inc _errorCounter
+	bne :noRoll
+	inc _errorCounter+1
+:noRoll	PRINTXY #38;#6;Mesg_Errors
+	ldx _errorCounter
+	lda _errorCounter+1
+	jsr PRNTAX
 	jsr WinConsole
-	lda #Mesg_Error1
-	ldy #>Mesg_Error1
-	jsr PrintString
-	jsr WinFull
-	clc
-	xce
-	rep $10
-	rts
+	LOG Mesg_E1	
+	ldx _testIteration
+	lda _testIteration+1
+	jsr PRNTAX
+	PRINTSTRING Mesg_E2	
 
-		;<---- CUT
-	sec
-	xce
-	ldx #42
-	ldy #13
-	lda #4
-	jsr PrintBox30
-	PRINTXY #45;#14;#Mesg_Error1
-	PRINTXY #45;#16;#Mesg_Error2
-	PRINTXY #45;#17;#Mesg_Error3
-	GOXY #57;#14
 	lda CurBank
 	jsr PRBYTE
 	lda #"/"
@@ -344,25 +342,44 @@ PrintTestError
 	lda _stash+3
 	ldx _stash+2
 	jsr PRNTAX
-	GOXY #57;#16
+	lda #$8D	
+	jsr COUT
+	jsr WinFull
+	LOG Mesg_E3
 	lda _stash+1
 	jsr PRBYTE
-	GOXY #61;#16
+	lda #" "
+	jsr COUT
+	lda #"%"
+	jsr COUT
 	lda _stash+1
 	jsr PRBIN
-	GOXY #57;#17
+	PRINTSTRING Mesg_E4
 	lda _stash
 	jsr PRBYTE
-	GOXY #61;#17
+	lda #" "
+	jsr COUT
+	lda #"%"
+	jsr COUT
 	lda _stash
 	jsr PRBIN
-	GOXY #66;#14
-	jsr RDKEY
-
 	clc
 	xce
 	rep $10
 	rts
+Mesg_E1	asc "Bad Read - Pass ",00
+Mesg_E2	asc "   Location: ",00
+Mesg_E3	asc "Wrote: $",00
+Mesg_E4	asc " ",$1B,'SU',$18," Read: $",00
+Mesg_Arrow	asc $1B,'SU',$18,00
+
+*Mesg_Error0	asc "Error: Bad Read Pass 0000  Location: 00/1234"
+*Mesg_Error0	asc "Wrote: $00 %12345678    Read: $00 %12345678" 
+
+
+
+
+
 	mx %01
 PrintTestCurrent	pha
 	phy
@@ -384,9 +401,12 @@ PrintTestCurrent	pha
 * CORRUPTOR!
 :kloop	lda KEY
 	cmp #"c"	; REMOVE DEBUG
-	bne :nocorrupt
-	jsr GetRandTrash
-:corruptme	stal $060000
+	beq :corruptor
+	cmp #"C"
+	beq :corruptor
+	bra :nocorrupt
+:corruptor	jsr GetRandTrash
+:corruptme	stal $060000	; addr gets overwritten
 	inc $c034
 	sta STROBE	; we only clear if 'c' is hit
 	inc _stash	; \
@@ -394,12 +414,24 @@ PrintTestCurrent	pha
 	inc _stash+1        ; /
 :nocorrupt	cmp #"p"	; check lower p
 * @TODO make tolower for the comparisons
-	bne :nopause
-	sta STROBE
-:nope	lda KEY
-	bpl :nope
-	sta STROBE
+	beq :pause
+	cmp #"P"
+	beq :pause
+	bra :nopause
+:pause	sta STROBE
+	jsr WaitKey
 :nopause
+	cmp #$9B
+	bne :noquit
+	clc
+	xce
+	rep $10
+	ldx _stash
+	ply
+	pla
+	sec
+	rts
+:noquit
 :noroll
 	clc
 	xce
@@ -407,7 +439,11 @@ PrintTestCurrent	pha
 	ldx _stash
 	ply
 	pla
+	clc
 	rts
+
+
+
 	mx %11
 PRBIN	pha
 	phx
@@ -431,7 +467,7 @@ Pauser
 	PRINTXY #38;#8;Mesg_Waiting
 	ldy #60
 	ldx TestDelay
-	beq :nopauseforyou
+	beq :donepause
 	jsr PrintTimerVal	; inaugural print before waiting 1 sec
 :secondloop
 :wait	ldal $e1c019
@@ -447,7 +483,6 @@ Pauser
 	bra :secondloop
 :donepause	
 	PRINTXY #38;#8;Mesg_Blank
-:nopauseforyou
 	rts
 PrintTimerVal
 	phx
@@ -480,7 +515,7 @@ CurBank	db  #0
 StartAddr	dw  #$0000
 EndAddr	dw  #$FFFF
 TestValue	dw  #$00
-TestDelay	dw  #$03
+TestDelay	dw  #$01
 
 
 

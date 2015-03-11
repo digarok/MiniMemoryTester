@@ -1,11 +1,17 @@
 **** MACROS
 * GOXY #x;#y
 * PRINTXY #x;#y;StringAddrWord
+* PRINTSTRING #addr
 **** FUNCTIONS
 * GoXY
 * PrintStringsX
 * PrintString
  
+PRINTSTRING	MAC
+	lda #]1
+	ldy #>]1
+	jsr PrintString
+	<<<
 
 GOXY	MAC
 	ldx ]1
