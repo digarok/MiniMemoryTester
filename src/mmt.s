@@ -26,15 +26,11 @@ Init
                     jsr          Menu_InitMenu
 Main
 :menuLoop           jsr          DrawMenuBackground
-                    jsr          WaitKey
-
-
                     jsr          DrawRomMessage
-                    jsr          WaitKey
-:menuNoDrawLoop     jsr          Menu_UndrawSelected
-                    jsr          Menu_DrawSelected
-                    jsr          WaitKey
-                    cmp          #$8D                   ; ENTER
+
+:menuNoDrawLoop     jsr          MenuCheckKeyColor
+                    bcc          :menuNoDrawLoop        ;hmm?
+:keyHit             cmp          #$8D                   ; ENTER
                     bne          :check1
 :enter              jsr          Menu_HandleSelection
                     bra          :menuLoop
@@ -118,7 +114,7 @@ DrawMenuBackground  jsr          HOME
 
 
 DrawRomMessage
-   									PRINTXY      #55;#05;Mesg_Rom
+                    PRINTXY      #55;#05;Mesg_Rom
                     lda          GSROM
                     jsr          PRBYTE
                     rts
@@ -230,7 +226,7 @@ BeginTestPass       PRINTXY      #38;#05;Mesg_TestPass
 :bankloop           lda          CurBank
                     sta          :bankstore+3
                     ldx          StartAddr
-                    lda          TestValue
+                    lda          HexPattern
 :bankstore          stal         $000000,x
                     cpx          EndAddr
                     beq          :donebank
@@ -271,11 +267,11 @@ BeginTestPass       PRINTXY      #38;#05;Mesg_TestPass
                     sta          :bankread+3
                     ldx          StartAddr
 :bankread           ldal         $000000,x
-                    cmp          TestValue
+                    cmp          HexPattern
                     beq          :testpass
                     phx
                     sta          _stash                 ; = read value
-                    lda          TestValue
+                    lda          HexPattern
                     sta          _stash+1               ; = expected value
                     stx          _stash+2
                     jsr          PrintTestError         ; addr in X
@@ -569,52 +565,59 @@ GetRandTrash                                            ; USE ONLY WITH CORRUPTO
                     rts
 _randomTrashByte    db           0
 
+
+
+
+
+
+
+
+* SETTINGS!!!
 * DEFAULTS
 StartBank           db           #$06
 EndBank             db           #$1F
 CurBank             db           #0
 StartAddr           dw           #$0000
 EndAddr             dw           #$FFFF
-TestValue           dw           #$00
+HexPattern          dw           #$0000
 TestDelay           dw           #$01
 
 
 
-
-
-
-
-
-
 MainMenuDefs
-:StartBank          hex          13,06                  ; x,y
+:StartBank          hex          19,05                  ; x,y
                     db           MenuOption_Hex         ; 1=hex input
                     db           01                     ; memory size (bytes)
                     da           StartBank              ; variable storage
-:EndBank            hex          13,07                  ; x,y
+:EndBank            hex          22,05                  ; x,y
                     db           MenuOption_Hex         ; 1=hex input
                     db           01                     ; memory size (bytes)
                     da           EndBank                ; variable storage
-:StartAddr          hex          13,09                  ; x,y
+:StartAddr          hex          19,06                  ; x,y
                     db           MenuOption_Hex         ; 1=hex input
                     db           02                     ; memory size (bytes)
                     da           StartAddr              ; variable storage
-:EndAddr            hex          13,0A                  ; x,y
+:EndAddr            hex          20,06                  ; x,y
                     db           MenuOption_Hex         ; 1=hex input
                     db           02                     ; memory size (bytes)
                     da           EndAddr                ; variable storage
+:TestType           hex          19,07                  ; x,y
+                    db           MenuOption_List        ; 3=list input
+                    db           11                     ; max len size (bytes), 3=option list
+                    da           TestType               ; params definition & storage
+:HexPattern         hex          19,08                  ; x,y
+                    db           MenuOption_Hex         ; 3=list input
+                    db           02                     ; max len size (bytes), 3=option list <- can change when 8 bit??
+                    da           HexPattern             ; params definition & storage
+:BinPattern         hex          19,09                  ; x,y
+                    db           MenuOption_Bin         ; 5?=list input
+                    db           02                     ; max len size (bytes), 3=option list <- can change when 8 bit??
+                    da           HexPattern             ; params definition & storage <- uses same space as above!! just different representation
+
 :TestSize           hex          13,0C                  ; x,y
                     db           MenuOption_List        ; 3=list input
                     db           08                     ; max len size (bytes), 3=option list
                     da           TestSize               ; params definition & storage
-:TestType           hex          13,0D                  ; x,y
-                    db           MenuOption_List        ; 3=list input
-                    db           08                     ; max len size (bytes), 3=option list
-                    da           TestType               ; params definition & storage
-:TestValue          hex          13,0E                  ; x,y
-                    db           MenuOption_Hex         ; 1=hex input
-                    db           01                     ; memory size (bytes)
-                    da           TestValue              ; variable storage
 :TestDelay          hex          13,0F                  ; x,y
                     db           MenuOption_Hex         ; 1=hex input
                     db           01                     ; memory size (bytes)
@@ -627,6 +630,7 @@ MainMenuLen         equ          *-MainMenuDefs
 MainMenuItems       equ          MainMenuLen/6
 MainMenuEnd         dw           0000
 Menu_ItemSelected   db           0
+
 
 
 * 00 - Byte : Selected Value
@@ -654,7 +658,7 @@ MenuStr_BeginTestL  equ          #*-MenuStr_BeginTest
 MenuStr_BeginTestE  db           00
 MainMenuStrs
                     asc          " ______________________________________________________________________________",$8D,$00
-                    asc          $1B,'ZG'," ",'@'," ",'GGGGGGGGGGGGGGGGGG\'," Mini Memory Tester v0.3 ",'\GGGGGGGGGGG\'," UltimateMicro ",'\G_',$18,$00
+                    asc          $1B,'ZV_@ZVWVWVWV_',"Mini Memory Tester v0.3",'ZVWVWVWVWVWVWVWVWVWVW_',"UltimateMicro",'ZWVWVWVW_',$18,$00
                     asc          $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,00
                     asc          $1B,'ZZ \GGGGGGGGGGGGG_',"Test Settings",'ZGGGGGGGGGGGGG\ _',"  ",'Z \GGGGGGGG_',"Info",'ZGGGGGGGG\ _'," ",'_',$18,00
                     asc          $1B,'ZZ',"                                             ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
@@ -663,11 +667,11 @@ MainMenuStrs
                     asc          $1B,'ZZ',"  Test Type         : [bit pattern]          ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZZ',"       Hex Pattern  : [0000]                 ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZZ',"       Bin Pattern  : [0000 0000 0000 0000]  ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"  Test Direction    : [up]                   ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"  Parallel R/W      : [off]                  ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"  Adjacent Writes   : [off]                  ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"  Refresh Pause     : [off]                  ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"  Iterations        : [000]                  ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"                                             ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"  Direction    [up]    Parallel R/W  [off]   ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"  Adjacent Wr. [off]   Refresh Pause [000]   ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"  Read Repeat  [000]   Write Repeat  [000]   ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"  Iterations   [000]                         ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZZ',"                                             ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,00
                     asc          $1B,'Z',"                                                                              ",'_',$18,00
@@ -683,11 +687,36 @@ MainMenuStrs
                     hex          00,00
 
 
+CheckKey            lda          KEY
+                    bpl          :noKey
+                    sta          STROBE
+                    sec
+                    rts
+:noKey              clc
+                    rts
+
+
+MenuCheckKeyColor   jsr          ColorizeMenu
+                    lda          _ticker
+                    bne          :skipDraw              ; we want to avoid updating when nothing is happening... "Save the Cycles!!" ;)
+                    jsr          Menu_DrawSelected
+:skipDraw           cmp          #14
+                    bne          :skipUndraw
+                    jsr          Menu_UndrawSelectedAll
+:skipUndraw         cmp          #$20
+                    bne          :noReset
+                    stz          _ticker
+                    jmp          CheckKey               ; Will RTS from CheckKey
+:noReset            inc          _ticker
+                    jmp          CheckKey               ; Will RTS from CheckKey
+
+_ticker             dw           0
+
 
 
 WaitKey
 :kloop
-                                                        jsr ColorizeMenu
+                    jsr          ColorizeMenu
                     lda          KEY
                     bpl          :kloop
                     sta          STROBE
