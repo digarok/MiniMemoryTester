@@ -131,75 +131,34 @@ Menu_UndrawSelectedAll
                            stz   _stash
 
 :undrawLoop                ldy   _stash                     ;struct ptr
+
                            lda   ($F0),y
                            beq   :stop
-                           dec                              ;x-- (left bracket)
-                           sta   _menuSelectedX1
+
+                           dec                              ;move left 1 space
+                           sta   _menuLBracketX
                            iny
-                           lda   ($F0),y
+                           lda   ($F0),y                    ;next param, y value
                            sta   _menuSelectedY
                            iny
-                           lda   ($F0),y
-                           cmp   MenuOption_Char
-                           bne   :notChar
-:isChar                    iny                              ;char, so find the width parameter
-                           lda   ($F0),y
-                           inc                              ;add 1
-                           clc
-                           adc   _menuSelectedX1            ;add the left bracket starting point
+                           lda   ($F0),y                    ;next param, type
                            tax
-                           bra   :rightBracket              ;go draw brackets starting with right
-
-:notChar                   cmp   MenuOption_Hex
-                           bne   :notHex
-:isHex                     iny                              ;hex, so find the width parameter
-                           lda   ($F0),y
-                           asl                              ;and multiply by 2 because a byte takes 2 chars on screen
-                           inc                              ;add 1
-                           clc
-                           adc   _menuSelectedX1            ;add the left bracket starting point
-                           tax
-                           bra   :rightBracket              ;go draw brackets starting with right
-
-
-:notHex                    cmp   MenuOption_Action
-                           bne   :notAction
-:isAction                  iny                              ;action, so find the max width parameter
-                           lda   ($F0),y
-                           inc                              ;add 1
-                           clc
-                           adc   _menuSelectedX1            ;add the left bracket starting point
-                           tax
-                           bra   :rightBracket              ;go draw brackets starting with right
-
-
-:notAction                 cmp   MenuOption_List
-                           bne   :wtf
                            iny
-                           lda   ($F0),y
-
-                           inc
+                           lda   ($F0),y                    ;next param, size (bytes)
+                           jsr   Menu_GetItemScreenWidth    ;get the real width
+                           inc                              ;add 1
                            clc
-                           adc   _menuSelectedX1
-                           tax
-                           bra   :rightBracket
-:wtf
+                           adc   _menuLBracketX             ;add the left bracket position
+                           sta   _menuRBracketX             ;and we should be in the right place
+                           jsr   Menu_UndrawBrackets
 
-:rightBracket
-                           ldy   _menuSelectedY
-                           jsr   GoXY
-                           lda   #"]"
-                           jsr   COUT
-:leftBracket               ldx   _menuSelectedX1
-                           ldy   _menuSelectedY
-                           jsr   GoXY
-                           lda   #"["
-                           jsr   COUT
                            lda   _stash
                            clc
                            adc   #sizeof_ItemStruct
                            sta   _stash
                            bra   :undrawLoop
+
+
 :stop
                            rts
 
@@ -251,9 +210,7 @@ Menu_GetItemScreenWidth
 :wtf
                            rts
 
-Menu_HighlightSelected
-        jsr   Menu_GetSelectedStructPtr  ;get ptr to selected item
-
+Menu_HighlightSelected     jsr   Menu_GetSelectedStructPtr  ;get ptr to selected item
                            tay
                            lda   ($F0),y                    ;start parsing the struct with x value
                            dec                              ;move left 1 space
@@ -274,6 +231,17 @@ Menu_HighlightSelected
                            jsr   Menu_DrawBrackets
                            rts
 
+Menu_UndrawBrackets        ldx   _menuRBracketX
+                           ldy   _menuSelectedY
+                           jsr   GoXY
+                           lda   #"]"
+                           jsr   COUT
+                           ldx   _menuLBracketX
+                           ldy   _menuSelectedY
+                           jsr   GoXY
+                           lda   #"["
+                           jsr   COUT
+                           rts
 Menu_DrawBrackets          ldx   _menuRBracketX
                            ldy   _menuSelectedY
                            jsr   GoXY
@@ -287,84 +255,7 @@ Menu_DrawBrackets          ldx   _menuRBracketX
                            rts
 _menuLBracketX             db    0
 _menuRBracketX             db    0
-
-Menu_DrawSelected          jmp   Menu_HighlightSelected     ; TESTING!!!
-                           lda   #0
-                           ldx   Menu_ItemSelected
-:check                     beq   :foundIdx
-                           clc
-                           adc   #sizeof_ItemStruct         ;"struct" size
-                           dex
-                           bra   :check
-
-:foundIdx                  tay
-                           lda   ($F0),y
-                           dec                              ;x-- (left bracket)
-                           sta   _menuSelectedX1
-                           iny
-                           lda   ($F0),y
-                           sta   _menuSelectedY
-                           iny
-                           lda   ($F0),y
-                           bne   :notChar
-                           iny
-                           lda   ($F0),y
-                           inc                              ;doit
-                           clc
-                           adc   _menuSelectedX1
-                           tax
-                           bra   :rightBracket
-
-:notChar                   cmp   #1
-                           bne   :notHex
-                           iny
-                           lda   ($F0),y
-                           asl
-                           inc                              ;doit
-                           clc
-                           adc   _menuSelectedX1
-                           tax
-                           bra   :rightBracket
-
-:notHex                    cmp   #2
-                           bne   :notAction
-                           iny
-                           lda   ($F0),y
-
-                           inc
-                           clc
-                           adc   _menuSelectedX1
-                           tax
-                           bra   :rightBracket
-
-
-:notAction
-                           cmp   #3
-                           bne   :wtf
-                           iny
-                           lda   ($F0),y
-
-                           inc
-                           clc
-                           adc   _menuSelectedX1
-                           tax
-                           bra   :rightBracket
-
-:wtf
-
-:rightBracket
-                           ldy   _menuSelectedY
-                           jsr   GoXY
-                           lda   #">"
-                           jsr   COUT
-:leftBracket               ldx   _menuSelectedX1
-                           ldy   _menuSelectedY
-                           jsr   GoXY
-                           lda   #"<"
-                           jsr   COUT
-
-                           rts
-_menuSelectedX1            db    0                          ;no x2 cuz we be addin' dat offset
+_menuSelectedX1            db    0                          
 _menuSelectedY             db    0
 
 * THESE ARE ALL OF THE MENU INPUT TYPES

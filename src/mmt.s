@@ -5,21 +5,19 @@
 *  2015-09-16                          *
 ****************************************
 
-                    org          $2000                  ; start at $2000 (all ProDOS8 system files)
-                    typ          $ff                    ; set P8 type ($ff = "SYS") for output file
-                    dsk          mtsystem               ; tell compiler what name for output file
+                    org          $2000                   ; start at $2000 (all ProDOS8 system files)
+                    typ          $ff                     ; set P8 type ($ff = "SYS") for output file
+                    dsk          mtsystem                ; tell compiler what name for output file
                     put          applerom
 
 MLI                 equ          $bf00
 Init
-                    sei                                 ; disable interrupts
-                    LDA          #$A0                   ;USE A BLANK SPACE TO
-                    JSR          $C300                  ;TURN ON THE VIDEO FIRMWARE
+                    sei                                  ; disable interrupts
+                    LDA          #$A0                    ;USE A BLANK SPACE TO
+                    JSR          $C300                   ;TURN ON THE VIDEO FIRMWARE
 
-                    lda          $C034                  ; save border color
+                    lda          $C034                   ; save border color
                     sta          BorderColor
-
-
 
                     lda          #MainMenuDefs
                     ldx          #>MainMenuDefs
@@ -29,16 +27,16 @@ Main
                     jsr          DrawRomMessage
 
 :menuNoDrawLoop     jsr          MenuCheckKeyColor
-                    bcc          :menuNoDrawLoop        ;hmm?
-:keyHit             cmp          #$8D                   ; ENTER
+                    bcc          :menuNoDrawLoop         ;hmm?
+:keyHit             cmp          #$8D                    ; ENTER
                     bne          :check1
 :enter              jsr          Menu_HandleSelection
                     bra          :menuLoop
-:check1             cmp          #$8B                   ; UP
+:check1             cmp          #$8B                    ; UP
                     bne          :check2
                     jsr          Menu_PrevItem
                     bra          :menuNoDrawLoop
-:check2             cmp          #$8A                   ; DOWN
+:check2             cmp          #$8A                    ; DOWN
                     bne          :noKey
                     jsr          Menu_NextItem
                     bra          :menuNoDrawLoop
@@ -49,44 +47,44 @@ ColorizeMenu
 :loop
                     lda          #$07
                     jsr          WaitSCB
-                    lda          #$c0                   ; green
+                    lda          #$c0                    ; green
                     sta          $c022
 
                     lda          #$09
                     jsr          WaitSCB
-                    lda          #$d0                   ; yello
+                    lda          #$d0                    ; yello
                     sta          $c022
 
                     lda          #$0A
                     jsr          WaitSCB
-                    lda          #$90                   ; orange
+                    lda          #$90                    ; orange
                     sta          $c022
 
 
                     lda          #$0B
                     jsr          WaitSCB
-                    lda          #$10                   ; red
+                    lda          #$10                    ; red
                     sta          $c022
 
                     lda          #$0C
                     jsr          WaitSCB
-                    lda          #$30                   ; purple
+                    lda          #$30                    ; purple
                     sta          $c022
 
                     lda          #$0D
                     jsr          WaitSCB
-                    lda          #$70                   ; bblue
+                    lda          #$70                    ; bblue
                     sta          $c022
 
                     lda          #$0E
                     jsr          WaitSCB
-                    lda          #$f0                   ; white
+                    lda          #$f0                    ; white
                     sta          $c022
                     rts
 
 WaitSCB
                     sta          :val+1
-                    ldx          #2                     ; to check twice
+                    ldx          #2                      ; to check twice
 :waitloop           lda          $c02f
                     asl
                     lda          $c02e
@@ -95,9 +93,9 @@ WaitSCB
                     bne          :waitloop
                     dex
                     bne          :waitloop
-                                                        ; the problem is we can get the LAST
-                                                        ; horizcnt even/odd right as it changes
-                                                        ; and start early or something?
+                                                         ; the problem is we can get the LAST
+                                                         ; horizcnt even/odd right as it changes
+                                                         ; and start early or something?
 
                     rts
 MAXSCB              db           0
@@ -105,7 +103,7 @@ MAXSCB              db           0
 DrawMenuBackground  jsr          HOME
                     lda          #MainMenuStrs
                     ldy          #>MainMenuStrs
-                    ldx          #00                    ; horiz pos
+                    ldx          #00                     ; horiz pos
                     jsr          PrintStringsX
 *                    lda          #MainMenuDefs
 *                    ldy          #>MainMenuDefs
@@ -130,12 +128,12 @@ LOG                 MAC
 ConsoleLog          pha
                     phy
                     jsr          WinConsole
-                    lda          #0                     ;settings to bottom-left of window
+                    lda          #0                      ;settings to bottom-left of window
                     sta          $24
                     lda          #20
                     sta          $25
                     jsr          VTAB
-                    lda          #$8D                   ;pre-fix CR
+                    lda          #$8D                    ;pre-fix CR
                     jsr          COUT
                     ply
                     pla
@@ -145,24 +143,24 @@ ConsoleLog          pha
 
 * Set console windowing
 WinConsole          lda          #52
-                    sta          $20                    ;left edge
+                    sta          $20                     ;left edge
                     lda          #26
-                    sta          $21                    ;width
+                    sta          $21                     ;width
                     lda          #5
-                    sta          $22                    ;top edge
+                    sta          $22                     ;top edge
                     lda          #16
-                    sta          $23                    ;bottom edge
+                    sta          $23                     ;bottom edge
                     rts
 
 * Set info windowing
 WinInfo             lda          #52
-                    sta          $20                    ;left edge
+                    sta          $20                     ;left edge
                     lda          #26
-                    sta          $21                    ;width
+                    sta          $21                     ;width
                     lda          #5
-                    sta          $22                    ;top edge
+                    sta          $22                     ;top edge
                     lda          #16
-                    sta          $23                    ;bottom edge
+                    sta          $23                     ;bottom edge
                     rts
 
 * Restore full screen windowing
@@ -182,20 +180,20 @@ WinFull             stz          $20
 
 
 
-Quit                jsr          MLI                    ; first actual command, call ProDOS vector
-                    dfb          $65                    ; with "quit" request ($65)
+Quit                jsr          MLI                     ; first actual command, call ProDOS vector
+                    dfb          $65                     ; with "quit" request ($65)
                     da           QuitParm
                     bcs          Error
-                    brk          $00                    ; shouldn't ever  here!
+                    brk          $00                     ; shouldn't ever  here!
 
-QuitParm            dfb          4                      ; number of parameters
-                    dfb          0                      ; standard quit type
-                    da           $0000                  ; not needed when using standard quit
-                    dfb          0                      ; not used
-                    da           $0000                  ; not used
+QuitParm            dfb          4                       ; number of parameters
+                    dfb          0                       ; standard quit type
+                    da           $0000                   ; not needed when using standard quit
+                    dfb          0                       ; not used
+                    da           $0000                   ; not used
 
 
-Error               brk          $00                    ; shouldn't be here either
+Error               brk          $00                     ; shouldn't be here either
 
 
 BeginTest           LOG          Mesg_Starting
@@ -217,12 +215,12 @@ BeginTestPass       PRINTXY      #38;#05;Mesg_TestPass
                     jsr          PRNTAX
                     PRINTXY      #38;#7;Mesg_Writing
 
-                    clc                                 ; WRITE START
+                    clc                                  ; WRITE START
                     xce
-                    rep          $10                    ; long x, short a
+                    rep          $10                     ; long x, short a
                     lda          StartBank
                     sta          CurBank
-                    ldy          #0                     ; update interval counter
+                    ldy          #0                      ; update interval counter
 :bankloop           lda          CurBank
                     sta          :bankstore+3
                     ldx          StartAddr
@@ -240,29 +238,29 @@ BeginTestPass       PRINTXY      #38;#05;Mesg_TestPass
 :noquit1            ldy          #0
                     bra          :bankstore
 :donebank
-                    ldy          #0                     ; because i'm anal.. this makes counter align
+                    ldy          #0                      ; because i'm anal.. this makes counter align
                     inc          CurBank
                     lda          EndBank
                     cmp          CurBank
                     bcs          :bankloop
-                    dec          CurBank                ; so many bad hacks
-                    jsr          PrintTestCurrent       ; print final score ;)
+                    dec          CurBank                 ; so many bad hacks
+                    jsr          PrintTestCurrent        ; print final score ;)
                     bcc          :noquit2
                     jmp          :escpressed
 :noquit2            sep          $10
                     sec
-                    xce                                 ; WRITE END
+                    xce                                  ; WRITE END
 
-                    jsr          Pauser                 ; PAUSE
+                    jsr          Pauser                  ; PAUSE
 
-                    PRINTXY      #38;#7;Mesg_Reading    ; READ PREP
+                    PRINTXY      #38;#7;Mesg_Reading     ; READ PREP
 
-                    clc                                 ; READ START
+                    clc                                  ; READ START
                     xce
-                    rep          $10                    ; long x, short a
+                    rep          $10                     ; long x, short a
                     lda          StartBank
                     sta          CurBank
-                    ldy          #0                     ; update interval counter
+                    ldy          #0                      ; update interval counter
 :bankrloop          lda          CurBank
                     sta          :bankread+3
                     ldx          StartAddr
@@ -270,11 +268,11 @@ BeginTestPass       PRINTXY      #38;#05;Mesg_TestPass
                     cmp          HexPattern
                     beq          :testpass
                     phx
-                    sta          _stash                 ; = read value
+                    sta          _stash                  ; = read value
                     lda          HexPattern
-                    sta          _stash+1               ; = expected value
+                    sta          _stash+1                ; = expected value
                     stx          _stash+2
-                    jsr          PrintTestError         ; addr in X
+                    jsr          PrintTestError          ; addr in X
                     plx
 :testpass           cpx          EndAddr
                     beq          :donerbank
@@ -286,19 +284,19 @@ BeginTestPass       PRINTXY      #38;#05;Mesg_TestPass
                     ldy          #0
                     bra          :bankread
 :donerbank
-                    ldy          #0                     ; because i'm anal.. this makes counter align
+                    ldy          #0                      ; because i'm anal.. this makes counter align
                     inc          CurBank
                     lda          EndBank
                     cmp          CurBank
                     bcs          :bankrloop
-                    dec          CurBank                ; so many bad hacks
-                    jsr          PrintTestCurrent       ; print final score ;)
+                    dec          CurBank                 ; so many bad hacks
+                    jsr          PrintTestCurrent        ; print final score ;)
                     sep          $10
                     sec
-                    xce                                 ; WRITE END
+                    xce                                  ; WRITE END
 
 
-                    jsr          Pauser                 ; PAUSE
+                    jsr          Pauser                  ; PAUSE
                     lda          BorderColor
                     sta          $C034
                     jmp          BeginTestPass
@@ -440,7 +438,7 @@ Mesg_Arrow          asc          $1B,'SU',$18,00
                     mx           %01
 PrintTestCurrent    pha
                     phy
-                    stx          _stash                 ; save real X
+                    stx          _stash                  ; save real X
                     sec
                     xce
                     GOXY         #48;#7
@@ -457,19 +455,19 @@ PrintTestCurrent    pha
                     jsr          PRBYTE
 * CORRUPTOR!
 :kloop              lda          KEY
-                    cmp          #"c"                   ; REMOVE DEBUG
+                    cmp          #"c"                    ; REMOVE DEBUG
                     beq          :corruptor
                     cmp          #"C"
                     beq          :corruptor
                     bra          :nocorrupt
 :corruptor          jsr          GetRandTrash
-:corruptme          stal         $060000                ; addr gets overwritten
+:corruptme          stal         $060000                 ; addr gets overwritten
                     inc          $c034
-                    sta          STROBE                 ; we only clear if 'c' is hit
-                    inc          _stash                 ; \
-                    beq          :noroll                ;  |- INX
-                    inc          _stash+1               ; /
-:nocorrupt          cmp          #"p"                   ; check lower p
+                    sta          STROBE                  ; we only clear if 'c' is hit
+                    inc          _stash                  ; \
+                    beq          :noroll                 ;  |- INX
+                    inc          _stash+1                ; /
+:nocorrupt          cmp          #"p"                    ; check lower p
 * @TODO make tolower for the comparisons
                     beq          :pause
                     cmp          #"P"
@@ -525,7 +523,7 @@ Pauser
                     ldy          #60
                     ldx          TestDelay
                     beq          :donepause
-                    jsr          PrintTimerVal          ; inaugural print before waiting 1 sec
+                    jsr          PrintTimerVal           ; inaugural print before waiting 1 sec
 :secondloop
 :wait               ldal         $e1c019
                     bpl          :wait
@@ -555,7 +553,7 @@ PrintTimerVal
 **************************************************
 * Awesome PRNG thx to White Flame (aka David Holz)
 **************************************************
-GetRandTrash                                            ; USE ONLY WITH CORRUPTOR
+GetRandTrash                                             ; USE ONLY WITH CORRUPTOR
                     lda          _randomTrashByte
                     beq          :doEor
                     asl
@@ -585,47 +583,47 @@ TestDelay           dw           #$01
 
 
 MainMenuDefs
-:StartBank          hex          19,05                  ; x,y
-                    db           MenuOption_Hex         ; 1=hex input
-                    db           01                     ; memory size (bytes)
-                    da           StartBank              ; variable storage
-:EndBank            hex          22,05                  ; x,y
-                    db           MenuOption_Hex         ; 1=hex input
-                    db           01                     ; memory size (bytes)
-                    da           EndBank                ; variable storage
-:StartAddr          hex          19,06                  ; x,y
-                    db           MenuOption_Hex         ; 1=hex input
-                    db           02                     ; memory size (bytes)
-                    da           StartAddr              ; variable storage
-:EndAddr            hex          20,06                  ; x,y
-                    db           MenuOption_Hex         ; 1=hex input
-                    db           02                     ; memory size (bytes)
-                    da           EndAddr                ; variable storage
-:TestType           hex          19,07                  ; x,y
-                    db           MenuOption_List        ; 3=list input
-                    db           11                     ; max len size (bytes), 3=option list
-                    da           TestType               ; params definition & storage
-:HexPattern         hex          19,08                  ; x,y
-                    db           MenuOption_Hex         ; 3=list input
-                    db           02                     ; max len size (bytes), 3=option list <- can change when 8 bit??
-                    da           HexPattern             ; params definition & storage
-:BinPattern         hex          19,09                  ; x,y
-                    db           MenuOption_Bin         ; 5?=list input
-                    db           02                     ; max len size (bytes), 3=option list <- can change when 8 bit??
-                    da           HexPattern             ; params definition & storage <- uses same space as above!! just different representation
+:StartBank          hex          19,05                   ; x,y
+                    db           MenuOption_Hex          ; 1=hex input
+                    db           01                      ; memory size (bytes)
+                    da           StartBank               ; variable storage
+:EndBank            hex          22,05                   ; x,y
+                    db           MenuOption_Hex          ; 1=hex input
+                    db           01                      ; memory size (bytes)
+                    da           EndBank                 ; variable storage
+:StartAddr          hex          19,06                   ; x,y
+                    db           MenuOption_Hex          ; 1=hex input
+                    db           02                      ; memory size (bytes)
+                    da           StartAddr               ; variable storage
+:EndAddr            hex          20,06                   ; x,y
+                    db           MenuOption_Hex          ; 1=hex input
+                    db           02                      ; memory size (bytes)
+                    da           EndAddr                 ; variable storage
+:TestType           hex          19,07                   ; x,y
+                    db           MenuOption_List         ; 3=list input
+                    db           11                      ; max len size (bytes), 3=option list
+                    da           TestType                ; params definition & storage
+:HexPattern         hex          19,08                   ; x,y
+                    db           MenuOption_Hex          ; 3=list input
+                    db           02                      ; max len size (bytes), 3=option list <- can change when 8 bit??
+                    da           HexPattern              ; params definition & storage
+:BinPattern         hex          19,09                   ; x,y
+                    db           MenuOption_Bin          ; 5?=list input
+                    db           02                      ; max len size (bytes), 3=option list <- can change when 8 bit??
+                    da           HexPattern              ; params definition & storage <- uses same space as above!! just different representation
 
-:TestSize           hex          13,0C                  ; x,y
-                    db           MenuOption_List        ; 3=list input
-                    db           08                     ; max len size (bytes), 3=option list
-                    da           TestSize               ; params definition & storage
-:TestDelay          hex          13,0F                  ; x,y
-                    db           MenuOption_Hex         ; 1=hex input
-                    db           01                     ; memory size (bytes)
-                    da           TestDelay              ; variable storage
-:BeginTest          hex          0B,14                  ; x,y
-                    db           MenuOption_Action      ; 2=action
-                    db           MenuStr_BeginTestL     ; menu string length
-                    da           MenuStr_BeginTest      ; string storage
+:TestSize           hex          13,0C                   ; x,y
+                    db           MenuOption_List         ; 3=list input
+                    db           08                      ; max len size (bytes), 3=option list
+                    da           TestSize                ; params definition & storage
+:TestDelay          hex          13,0F                   ; x,y
+                    db           MenuOption_Hex          ; 1=hex input
+                    db           01                      ; memory size (bytes)
+                    da           TestDelay               ; variable storage
+:BeginTest          hex          0B,14                   ; x,y
+                    db           MenuOption_Action       ; 2=action
+                    db           MenuStr_BeginTestL      ; menu string length
+                    da           MenuStr_BeginTest       ; string storage
 MainMenuLen         equ          *-MainMenuDefs
 MainMenuItems       equ          MainMenuLen/6
 MainMenuEnd         dw           0000
@@ -636,8 +634,8 @@ Menu_ItemSelected   db           0
 * 00 - Byte : Selected Value
 * 01 - Byte : Number of values
 * 02... - Words : Table of Addresses of possible values
-TestType            db           00                     ; actual CONST val
-                    db           06                     ; number of possible values
+TestType            db           00                      ; actual CONST val
+                    db           06                      ; number of possible values
                     da           _TestType_0,_TestType_1,_TestType_2,_TestType_3,_TestType_4,_TestType_5,00,00
 _TestType_0         asc          "BYTE",$00
 _TestType_1         asc          "WORD",$00
@@ -652,7 +650,7 @@ TestSize            db           00
 _TestSize_0         asc          "BYTE",$00
 _TestSize_1         asc          "WORD",$00
 
-MenuStr_JSR         da           BeginTest              ; MUST PRECEDE MENU STRING!  Yes, it's magicly inferred. (-2)
+MenuStr_JSR         da           BeginTest               ; MUST PRECEDE MENU STRING!  Yes, it's magicly inferred. (-2)
 MenuStr_BeginTest   asc          "BEGIN TEST"
 MenuStr_BeginTestL  equ          #*-MenuStr_BeginTest
 MenuStr_BeginTestE  db           00
@@ -698,17 +696,17 @@ CheckKey            lda          KEY
 
 MenuCheckKeyColor   jsr          ColorizeMenu
                     lda          _ticker
-                    bne          :skipDraw              ; we want to avoid updating when nothing is happening... "Save the Cycles!!" ;)
-                    jsr          Menu_DrawSelected
-:skipDraw           cmp          #14
+                    bne          :skipDraw               ; we want to avoid updating when nothing is happening... "Save the Cycles!!" ;)
+                    jsr          Menu_HighlightSelected
+:skipDraw           cmp          #12
                     bne          :skipUndraw
                     jsr          Menu_UndrawSelectedAll
-:skipUndraw         cmp          #$20
+:skipUndraw         cmp          #16
                     bne          :noReset
                     stz          _ticker
-                    jmp          CheckKey               ; Will RTS from CheckKey
+                    jmp          CheckKey                ; Will RTS from CheckKey
 :noReset            inc          _ticker
-                    jmp          CheckKey               ; Will RTS from CheckKey
+                    jmp          CheckKey                ; Will RTS from CheckKey
 
 _ticker             dw           0
 
@@ -720,7 +718,7 @@ WaitKey
                     lda          KEY
                     bpl          :kloop
                     sta          STROBE
-                    cmp          #"b"                   ; REMOVE DEBUG
+                    cmp          #"b"                    ; REMOVE DEBUG
                     bne          :nobreak
                     brk          $75
 :nobreak
