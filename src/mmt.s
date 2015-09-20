@@ -105,9 +105,9 @@ DrawMenuBackground  jsr          HOME
                     ldy          #>MainMenuStrs
                     ldx          #00                     ; horiz pos
                     jsr          PrintStringsX
-*                    lda          #MainMenuDefs
-*                    ldy          #>MainMenuDefs
-*                jsr          Menu_DrawOptions
+                    lda          #MainMenuDefs
+                    ldy          #>MainMenuDefs
+                    jsr          Menu_DrawOptions
                     rts
 
 
@@ -218,7 +218,7 @@ BeginTestPass       PRINTXY      #38;#05;Mesg_TestPass
                     clc                                  ; WRITE START
                     xce
                     rep          $10                     ; long x, short a
-                    lda          StartBank
+                    lda          TestStartBank
                     sta          CurBank
                     ldy          #0                      ; update interval counter
 :bankloop           lda          CurBank
@@ -258,7 +258,7 @@ BeginTestPass       PRINTXY      #38;#05;Mesg_TestPass
                     clc                                  ; READ START
                     xce
                     rep          $10                     ; long x, short a
-                    lda          StartBank
+                    lda          TestStartBank
                     sta          CurBank
                     ldy          #0                      ; update interval counter
 :bankrloop          lda          CurBank
@@ -521,7 +521,7 @@ PRBIN               pha
 Pauser
                     PRINTXY      #38;#8;Mesg_Waiting
                     ldy          #60
-                    ldx          TestDelay
+                    ldx          TestRefreshPause
                     beq          :donepause
                     jsr          PrintTimerVal           ; inaugural print before waiting 1 sec
 :secondloop
@@ -566,27 +566,74 @@ _randomTrashByte    db           0
 
 
 
+*
+*
+*
+*
+*         S E T T I N G S ! ! ! ! ! ! !
+*
+*
+*
 
+*@todo better defaults
+* 00 - Byte : Selected Value
+* 01 - Byte : Number of values
+* 02... - Words : Table of Addresses of possible values
+TestTypeTbl         db           00                      ; actual CONST val
+                    db           04                      ; number of possible values
+                    da           _TestType_0,_TestType_1,_TestType_2,_TestType_3,00,00
+_TestType_0         asc          "bit pattern",$00
+_TestType_1         asc          "bit walk 1",$00
+_TestType_2         asc          "bit walk 0",$00
+_TestType_3         asc          "random    ",$00
 
+TestDirectionTbl    db           0
+                    db           2
+                    da           _testDirectionUp,_testDirectionDown,00,00
+_testDirectionUp    asc          "up",$00
+_testDirectionDown  asc          "dn",$00
 
+TestSizeTbl         db           00
+                    db           02
+                    da           _TestSize_0,_TestSize_1
+_TestSize_0         asc          " 8-bit",$00
+_TestSize_1         asc          "16-bit",$00
 
-* SETTINGS!!!
-* DEFAULTS
-StartBank           db           #$06
+MenuStr_JSR         da           BeginTest               ; MUST PRECEDE MENU STRING!  Yes, it's magicly inferred. (-2)
+MenuStr_BeginTest   asc          "BEGIN TEST"
+MenuStr_BeginTestL  equ          #*-MenuStr_BeginTest
+MenuStr_BeginTestE  db           00
+TestStartBank       db           #$06
 EndBank             db           #$1F
 CurBank             db           #0
 StartAddr           dw           #$0000
 EndAddr             dw           #$FFFF
 HexPattern          dw           #$0000
-TestDelay           dw           #$01
+
+TestDirection       dw           #0                      ; list
+TestParallel        dw           #0                      ; bool is byte, but might change in future? :P
+TestAdjacentWrite   dw           #0                      ; bool is byte, but might change in future? :P
+TestRefreshPause    dw           #$01                    ; int
+TestReadRepeat      dw           #$01                    ; int
+TestWriteRepeat     dw           #$01                    ; int
+TestIterations      dw           #$00                    ; int
 
 
+
+*
+*
+*
+*
+*         M E N U ! ! ! ! ! ! !
+*
+*
+*
 
 MainMenuDefs
 :StartBank          hex          19,05                   ; x,y
                     db           MenuOption_Hex          ; 1=hex input
                     db           01                      ; memory size (bytes)
-                    da           StartBank               ; variable storage
+                    da           TestStartBank           ; variable storage
 :EndBank            hex          22,05                   ; x,y
                     db           MenuOption_Hex          ; 1=hex input
                     db           01                      ; memory size (bytes)
@@ -602,25 +649,49 @@ MainMenuDefs
 :TestType           hex          19,07                   ; x,y
                     db           MenuOption_List         ; 3=list input
                     db           11                      ; max len size (bytes), 3=option list
-                    da           TestType                ; params definition & storage
+                    da           TestTypeTbl             ; params definition & storage
+:TestSize           hex          28,07                   ; x,y
+                    db           MenuOption_List         ; 3=list input
+                    db           6                       ; max len size (bytes), 3=option list
+                    da           TestSizeTbl             ; params definition & storage
+
 :HexPattern         hex          19,08                   ; x,y
                     db           MenuOption_Hex          ; 3=list input
                     db           02                      ; max len size (bytes), 3=option list <- can change when 8 bit??
                     da           HexPattern              ; params definition & storage
 :BinPattern         hex          19,09                   ; x,y
-                    db           MenuOption_Bin          ; 5?=list input
+                    db           MenuOption_Bin          ; 5?=bin
                     db           02                      ; max len size (bytes), 3=option list <- can change when 8 bit??
                     da           HexPattern              ; params definition & storage <- uses same space as above!! just different representation
-
-:TestSize           hex          13,0C                   ; x,y
-                    db           MenuOption_List         ; 3=list input
-                    db           08                      ; max len size (bytes), 3=option list
-                    da           TestSize                ; params definition & storage
-:TestDelay          hex          13,0F                   ; x,y
-                    db           MenuOption_Hex          ; 1=hex input
+:Direction          hex          12,0B
+                    db           MenuOption_List
+                    db           2
+                    da           TestDirectionTbl
+:Parallel           hex          28,0B
+                    db           MenuOption_Bool
+                    db           2                       ; could be 8-bit or 16-bit bool
+                    da           TestParallel
+:AdjacentWrite      hex          12,0C                   ; x,y
+                    db           MenuOption_Bool         ; 1=hex input
                     db           01                      ; memory size (bytes)
-                    da           TestDelay               ; variable storage
-:BeginTest          hex          0B,14                   ; x,y
+                    da           TestAdjacentWrite       ; variable storage
+:TestRefreshPause   hex          28,0C                   ; x,y
+                    db           MenuOption_Int          ; 1=hex input
+                    db           01                      ; memory size (bytes)
+                    da           TestRefreshPause        ; variable storage
+:ReadRepeat         hex          12,0D                   ; x,y
+                    db           MenuOption_Int          ; 1=hex input
+                    db           03                      ; display/entry width. ints are 16-bit internally
+                    da           TestReadRepeat          ; variable storage
+:WriteRepeat        hex          28,0D                   ; x,y
+                    db           MenuOption_Int          ; 1=hex input
+                    db           03                      ; display/entry width. ints are 16-bit internally
+                    da           TestWriteRepeat         ; variable storage
+:TestIterations     hex          12,0E                   ; x,y
+                    db           MenuOption_Int          ; 1=hex input
+                    db           03                      ; display/entry width. ints are 16-bit internally
+                    da           TestIterations          ; variable storage
+:BeginTest          hex          20,0F                   ; x,y
                     db           MenuOption_Action       ; 2=action
                     db           MenuStr_BeginTestL      ; menu string length
                     da           MenuStr_BeginTest       ; string storage
@@ -631,46 +702,24 @@ Menu_ItemSelected   db           0
 
 
 
-* 00 - Byte : Selected Value
-* 01 - Byte : Number of values
-* 02... - Words : Table of Addresses of possible values
-TestType            db           00                      ; actual CONST val
-                    db           06                      ; number of possible values
-                    da           _TestType_0,_TestType_1,_TestType_2,_TestType_3,_TestType_4,_TestType_5,00,00
-_TestType_0         asc          "BYTE",$00
-_TestType_1         asc          "WORD",$00
-_TestType_2         asc          "RANDBYTE",$00
-_TestType_3         asc          "RANDWORD",$00
-_TestType_4         asc          "CHECKERS",$00
-_TestType_5         asc          "BANK",$00
 
-TestSize            db           00
-                    db           02
-                    da           _TestSize_0,_TestSize_1
-_TestSize_0         asc          "BYTE",$00
-_TestSize_1         asc          "WORD",$00
-
-MenuStr_JSR         da           BeginTest               ; MUST PRECEDE MENU STRING!  Yes, it's magicly inferred. (-2)
-MenuStr_BeginTest   asc          "BEGIN TEST"
-MenuStr_BeginTestL  equ          #*-MenuStr_BeginTest
-MenuStr_BeginTestE  db           00
 MainMenuStrs
                     asc          " ______________________________________________________________________________",$8D,$00
                     asc          $1B,'ZV_@ZVWVWVWV_',"Mini Memory Tester v0.3",'ZVWVWVWVWVWVWVWVWVWVW_',"UltimateMicro",'ZWVWVWVW_',$18,$00
                     asc          $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,00
-                    asc          $1B,'ZZ \GGGGGGGGGGGGG_',"Test Settings",'ZGGGGGGGGGGGGG\ _',"  ",'Z \GGGGGGGG_',"Info",'ZGGGGGGGG\ _'," ",'_',$18,00
-                    asc          $1B,'ZZ',"                                             ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"  Start/End Bank    : [06]  /  [1F]          ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"  Start/End Address : [0000]/[FFFF]          ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"  Test Type         : [bit pattern]          ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"       Hex Pattern  : [0000]                 ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"       Bin Pattern  : [0000 0000 0000 0000]  ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"                                             ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"  Direction    [up]    Parallel R/W  [off]   ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"  Adjacent Wr. [off]   Refresh Pause [000]   ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"  Read Repeat  [000]   Write Repeat  [000]   ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"  Iterations   [000]                         ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"                                             ",'_',"  ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ \GGGGGGGGGGGGG_',"Test  Settings",'ZGGGGGGGGGGGGG\ _'," ",'Z \GGGGGGGG_',"Info",'ZGGGGGGGG\ _'," ",'_',$18,00
+                    asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"  Start/End Bank    : [  ]  /  [  ]           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"  Start/End Address : [    ]/[    ]           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"  Test Type         : [           ]           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"       Hex Pattern  : [    ]                  ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"       Bin Pattern  : [                   ]   ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"  Direction    [up]    Parallel R/W  [off]    ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"  Adjacent Wr. [off]   Refresh Pause [000]    ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"  Read Repeat  [000]   Write Repeat  [000]    ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"  Iterations   [000]                          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,00
                     asc          $1B,'Z',"                                                                              ",'_',$18,00
                     asc          $1B,'Z',"                                                                              ",'_',$18,00
@@ -684,14 +733,6 @@ MainMenuStrs
 
                     hex          00,00
 
-
-CheckKey            lda          KEY
-                    bpl          :noKey
-                    sta          STROBE
-                    sec
-                    rts
-:noKey              clc
-                    rts
 
 
 MenuCheckKeyColor   jsr          ColorizeMenu
@@ -707,9 +748,15 @@ MenuCheckKeyColor   jsr          ColorizeMenu
                     jmp          CheckKey                ; Will RTS from CheckKey
 :noReset            inc          _ticker
                     jmp          CheckKey                ; Will RTS from CheckKey
-
 _ticker             dw           0
 
+CheckKey            lda          KEY
+                    bpl          :noKey
+                    sta          STROBE
+                    sec
+                    rts
+:noKey              clc
+                    rts
 
 
 WaitKey
@@ -730,3 +777,5 @@ BorderColor         db           0
                     ds           \
 _stash              ds           255
                     ds           \
+
+
