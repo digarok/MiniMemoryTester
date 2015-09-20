@@ -120,7 +120,29 @@ PRCARRYBIT                 pha
                            rts
 
 
-Menu_DrawOptionBool        rts
+Menu_DrawOptionBool        iny
+                           lda   ($F0),y                    ;get len
+                           sta   _menuOptionLen
+                           iny
+                           lda   ($F0),y                    ;get da
+                           sta   $F2                        ;storez
+                           iny
+                           lda   ($F0),y                    ;get da
+                           sta   $F3                        ;storez
+                           ldy   #0
+:prloop                    lda   ($F2),y                  ;get our bool value
+                           bne   :on
+:off                       lda   #_menuBoolOffStr
+                           ldy   #>_menuBoolOffStr
+                           jmp   PrintString                ;auto-rts
+:on                        lda   #_menuBoolOnStr
+                           ldy   #>_menuBoolOnStr
+                           jmp   PrintString                ;auto-rts
+
+_menuBoolOnStr             asc   " on",00
+_menuBoolOffStr            asc   "off",00
+* @todo make this more configurable
+
 Menu_DrawOptionInt         rts
 
 Menu_DrawOptionHex         iny
@@ -340,8 +362,26 @@ Menu_HandleSelection
                            pla
                            jmp   (Menu_TypeTable,x)
 
+
+* A= struct index for all of these.
 Menu_TypeChar              rts
-Menu_TypeBool              rts
+Menu_TypeBool              tay
+                           iny ;skip x
+                           iny ;skip y
+                           iny ;skip length
+                           iny
+
+                           lda ($F0),y
+                           sta $F2
+                           iny
+                           lda ($F0),y
+                           sta $F3
+                           lda #1
+                           eor ($f2)
+                           sta ($f2)
+                           rts
+
+
 Menu_TypeBin               rts
 Menu_TypeInt               rts
 
@@ -384,7 +424,7 @@ Menu_TypeAction            iny                              ;skip len byte
                            sta   :ACTION+1
                            bcs   :copy
                            dec   :ACTION+2
-:copy                      ldx   #0                         ;this is all so bad
+:copy                      ldx   #0                         ;this is all so bad - maybe rts is better
 :ACTION                    lda   $ffff,x
                            sta   :JSR+1,x
                            inx
@@ -485,4 +525,3 @@ HexCharForByte
 :alpha                     clc
                            adc   #"A"
                            rts
-

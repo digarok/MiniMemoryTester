@@ -45,38 +45,48 @@ Main
 
 ColorizeMenu
 :loop
-                    lda          #$07
+                    lda          #6
+                    jsr          WaitSCB
+                    lda          #$A0                    ; green
+                    sta          $c022
+
+                    lda          #7
                     jsr          WaitSCB
                     lda          #$c0                    ; green
                     sta          $c022
 
-                    lda          #$09
+                    lda          #9
                     jsr          WaitSCB
                     lda          #$d0                    ; yello
                     sta          $c022
 
-                    lda          #$0A
+                    lda          #10
                     jsr          WaitSCB
                     lda          #$90                    ; orange
                     sta          $c022
 
 
-                    lda          #$0B
+                    lda          #11
                     jsr          WaitSCB
                     lda          #$10                    ; red
                     sta          $c022
 
-                    lda          #$0C
+                    lda          #12
                     jsr          WaitSCB
                     lda          #$30                    ; purple
                     sta          $c022
 
-                    lda          #$0D
+                    lda          #13
                     jsr          WaitSCB
                     lda          #$70                    ; bblue
                     sta          $c022
 
-                    lda          #$0E
+                    lda          #15
+                    jsr          WaitSCB
+                    lda          #$50                    ; grey
+                    sta          $c022
+
+                    lda          #16
                     jsr          WaitSCB
                     lda          #$f0                    ; white
                     sta          $c022
@@ -715,8 +725,8 @@ MainMenuStrs
                     asc          $1B,'ZZ',"       Hex Pattern  : [    ]                  ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZZ',"       Bin Pattern  : [                   ]   ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"  Direction    [up]    Parallel R/W  [off]    ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"  Adjacent Wr. [off]   Refresh Pause [000]    ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"  Direction    [  ]    Parallel R/W  [   ]    ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"  Adjacent Wr. [   ]   Refresh Pause [000]    ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZZ',"  Read Repeat  [000]   Write Repeat  [000]    ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZZ',"  Iterations   [000]                          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
@@ -777,5 +787,3 @@ BorderColor         db           0
                     ds           \
 _stash              ds           255
                     ds           \
-
-
