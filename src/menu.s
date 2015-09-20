@@ -443,16 +443,31 @@ Menu_TypeList
                            rts
 *** INPUT LIBRARY FOR MENU
 * Pass desired length in A
-GetHex                     sta   _gethex_maxlen
+GetHex
+        sta   _gethex_maxlen
                            stx   _gethex_resultptr
                            sty   _gethex_resultptr+1
                            stz   _gethex_current
+                           lda $24
+                          sta _gethex_screenx ;stash x.  gets clobbered by RDKEY
 
 :input                     jsr   RDKEY
+
                            cmp   #$9B                       ;esc = abort
                            bne   :notesc
                            rts
-:notesc                    cmp   #"9"+1
+:notesc                    cmp #$FF ;del
+                           beq :goBack
+                           cmp #$88
+                           bne :notBack
+:goBack
+                           lda _gethex_current
+                           beq :badChar ; otherwise result = -1
+                           dec _gethex_current
+                           dec _gethex_screenx
+                           GOXY _gethex_screenx;$25
+                           bra :input
+:notBack                   cmp   #"9"+1
                            bcs   :notNum                    ;bge > 9
                            cmp   #"0"
                            bcc   :badChar                   ;
@@ -476,6 +491,7 @@ GetHex                     sta   _gethex_maxlen
                            pla
                            ldy   _gethex_current
                            sta   _gethex_buffer,y
+                           inc _gethex_screenx
                            iny
                            cpy   #_gethex_internalmax
                            bge   :internalmax
@@ -507,13 +523,14 @@ GetHex                     sta   _gethex_maxlen
                            bcc   :copyBuffer
                            rts
 
-:badChar                   bra   :input
+:badChar                   jmp   :input
 
 _gethex_internalmax        equ   8
 _gethex_resultptr          da    0000
 _gethex_maxlen             db    1
 _gethex_current            db    0
 _gethex_buffer             ds    _gethex_internalmax
+_gethex_screenx           db 0
 PrHexChar                  jsr   HexCharForByte
 
 HexCharForByte
