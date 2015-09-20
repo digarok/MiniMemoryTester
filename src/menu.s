@@ -47,36 +47,85 @@ Menu_DrawOptions
                            iny
                            iny
                            lda   ($F0),y
-                           beq   :charItem
-                           cmp   #1
-                           beq   :hexItem
-                           cmp   #2
-                           beq   :jsrItem
-                           cmp   #3
-                           beq   :listItem
-                           cmp   #4
-                           beq   :boolItem
-:charItem
-:boolItem
-:hexItem                   jsr   Menu_DrawOptionHex
-                           bra   :nextMenuItem
-:listItem                  jsr   Menu_DrawOptionList
-                           bra   :nextMenuItem
-:jsrItem                   jsr   Menu_DrawOptionAction
-                           bra   :nextMenuItem
 
-:nextMenuItem
-                           lda   _menuOptionPtr
+                           asl                              ; *2 for table index
+                           tax
+                           pea   #:nextMenuItem-1           ; push this address to return from jmp tbl, yay 65816
+                           jmp   (Menu_DrawRoutinesTbl,x)
+
+:nextMenuItem              lda   _menuOptionPtr
                            clc
                            adc   #sizeof_ItemStruct         ;len of "struct"
                            sta   _menuOptionPtr
                            bra   :drawOption
-:menuDone
+:menuDone                  rts
+
+Menu_DrawRoutinesTbl       da    Menu_DrawOptionHex         ;char
+                           da    Menu_DrawOptionHex
+                           da    Menu_DrawOptionAction
+                           da    Menu_DrawOptionList
+                           da    Menu_DrawOptionBool
+                           da    Menu_DrawOptionBin
+                           da    Menu_DrawOptionInt
+Menu_DrawOptionBin         iny
+                           lda   ($F0),y                    ;get len
+                           sta   _menuOptionLen
+                           iny
+                           lda   ($F0),y                    ;get da
+                           sta   $F2                        ;storez
+                           iny
+                           lda   ($F0),y                    ;get da
+                           sta   $F3                        ;storez
+                           ldy   #0
+
+:prloop                    lda   ($F2),y
+                                                            ; print 4 bits
+                           phy                              ; for safety.   might not be needed
+                           asl
+                           jsr   PRCARRYBIT
+                           asl
+                           jsr   PRCARRYBIT
+                           asl
+                           jsr   PRCARRYBIT
+                           asl
+                           jsr   PRCARRYBIT
+                           pha
+                           lda   #" "
+                           jsr   COUT
+                           pla
+                           asl
+                           jsr   PRCARRYBIT
+                           asl
+                           jsr   PRCARRYBIT
+                           asl
+                           jsr   PRCARRYBIT
+                           asl
+                           jsr   PRCARRYBIT
+
+                           ply
+                           iny
+                           cpy   _menuOptionLen
+                           beq   :done
+                           lda   #" "                       ;print space between octets of bits
+                           jsr   COUT
+                           bra   :prloop
+:done                      rts
+PRCARRYBIT                 pha
+                           bcs   :is1
+:is0                       lda   #"0"
+                           bra   :out
+:is1                       lda   #"1"
+:out                       jsr   COUT
+                           pla
                            rts
+
+
+Menu_DrawOptionBool        rts
+Menu_DrawOptionInt         rts
 
 Menu_DrawOptionHex         iny
                            lda   ($F0),y                    ;get len
-                           sta   _menuHexIdx
+                           sta   _menuOptionLen
                            iny
                            lda   ($F0),y                    ;get da
                            sta   $F2                        ;storez
@@ -87,7 +136,7 @@ Menu_DrawOptionHex         iny
 :prloop                    lda   ($F2),y
                            jsr   PRBYTE
                            iny
-                           cpy   _menuHexIdx
+                           cpy   _menuOptionLen
                            bne   :prloop
                            rts
 
@@ -125,7 +174,7 @@ Menu_DrawOptionList        iny                              ;point to da
                            jsr   PrintString
                            rts
 
-_menuHexIdx                dw    0
+_menuOptionLen             dw    0
 _menuOptionPtr             dw    00
 Menu_UndrawSelectedAll
                            stz   _stash
@@ -205,6 +254,7 @@ Menu_GetItemScreenWidth
                            rts                              ;should be defined in param from string length
 :notList                   cpx   MenuOption_Bool
                            bne   :notBool
+                           lda   #3                         ;@todo: we'll use "off"/"on" for now.. revisit?
                            rts                              ;hmm.. undefined?   @TODO!!!
 :notBool
 :wtf
@@ -255,7 +305,7 @@ Menu_DrawBrackets          ldx   _menuRBracketX
                            rts
 _menuLBracketX             db    0
 _menuRBracketX             db    0
-_menuSelectedX1            db    0                          
+_menuSelectedX1            db    0
 _menuSelectedY             db    0
 
 * THESE ARE ALL OF THE MENU INPUT TYPES
@@ -435,3 +485,4 @@ HexCharForByte
 :alpha                     clc
                            adc   #"A"
                            rts
+
