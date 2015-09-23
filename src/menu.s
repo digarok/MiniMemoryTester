@@ -517,7 +517,32 @@ Menu_InputAction           iny                              ;skip len byte
 * if down then next item /
 * if enter, done - when it gets back to menu loop, we should handle special logic there
 Menu_InputList
-                           rts
+                           tay
+                           iny                              ;skip x
+                           iny                              ;skip y
+                           iny                              ;skip length
+                           iny
+
+                           lda   ($F0),y                    ;get ptr to tbl
+                           sta   $F2                        ; |
+                           iny                              ;
+                           lda   ($F0),y                    ;
+                           sta   $F3                        ;
+
+
+                           ldy   #$0
+
+                           lda   ($F2),y                    ;get new current value
+                           inc                              ;selecteditem++
+                           sta   ($F2),y                    ;store new current value
+                           iny
+                           cmp   ($F2),y                    ;compare to max
+                           bcc   :done                      ;current value < max  
+                           ldy   #0                         ;reset selected item to 0 (rollover)
+                           tya
+                           sta   ($F2),y
+:done                      rts
+
 *** INPUT LIBRARY FOR MENU
 * Pass desired length in A
 * x/y= storage area

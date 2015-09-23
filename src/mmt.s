@@ -28,13 +28,15 @@ Init
 Main
 :menuLoop           jsr          DrawMenuBackground
                     jsr          DrawRomMessage
-
+:menuDrawOptionsLoop                     lda          #MainMenuDefs
+                    ldy          #>MainMenuDefs
+                    jsr          Menu_DrawOptions
 :menuNoDrawLoop     jsr          MenuCheckKeyColor
                     bcc          :menuNoDrawLoop         ;hmm?
 :keyHit             cmp          #KEY_ENTER              ;8D
                     bne          :check1
 :enter              jsr          Menu_HandleSelection
-                    bra          :menuLoop
+                    bra          :menuNoDrawLoop
 
 :check1             cmp          #KEY_UPARROW            ;8B
                     beq          :prevItem
@@ -44,7 +46,7 @@ Main
                     beq          :nextItem
                     cmp          #KEY_RTARROW            ;95
                     beq          :nextItem
-:unknownKey         bra          :menuLoop
+:unknownKey         bra          :menuNoDrawLoop
 :prevItem           jsr          Menu_PrevItem
                     bra          :menuNoDrawLoop
 :nextItem           jsr          Menu_NextItem
@@ -125,9 +127,6 @@ DrawMenuBackground  jsr          HOME
                     ldy          #>MainMenuStrs
                     ldx          #00                     ; horiz pos
                     jsr          PrintStringsX
-                    lda          #MainMenuDefs
-                    ldy          #>MainMenuDefs
-                    jsr          Menu_DrawOptions
                     rts
 
 
@@ -587,13 +586,12 @@ _randomTrashByte    db           0
 
 
 *
-*
-*
-*
-*         S E T T I N G S ! ! ! ! ! ! !
-*
-*
-*
+*       ####  ###### ##### ##### # #    #  ####   ####
+*      #      #        #     #   # ##   # #    # #
+*       ####  #####    #     #   # # #  # #       ####
+*           # #        #     #   # #  # # #  ###      #
+*      #    # #        #     #   # #   ## #    # #    #
+*       ####  ######   #     #   # #    #  ####   ####
 
 *@todo better defaults
 * 00 - Byte : Selected Value
@@ -641,13 +639,12 @@ TestIterations      dw           #$00                    ; int
 
 
 *
-*
-*
-*
-*         M E N U ! ! ! ! ! ! !
-*
-*
-*
+*           #    # ###### #    # #    #
+*           ##  ## #      ##   # #    #
+*           # ## # #####  # #  # #    #
+*           #    # #      #  # # #    #
+*           #    # #      #   ## #    #
+*           #    # ###### #    #  ####
 
 MainMenuDefs
 :StartBank          hex          19,05                   ; x,y
@@ -797,4 +794,3 @@ BorderColor         db           0
                     ds           \
 _stash              ds           255
                     ds           \
-
