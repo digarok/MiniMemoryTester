@@ -12,7 +12,8 @@
 
 MLI                 equ          $bf00
 Init
-                    jsr BINBCD16
+
+                    jsr          BINBCD16
                     sei                                  ; disable interrupts
                     LDA          #$A0                    ;USE A BLANK SPACE TO
                     JSR          $C300                   ;TURN ON THE VIDEO FIRMWARE
@@ -23,26 +24,35 @@ Init
                     lda          #MainMenuDefs
                     ldx          #>MainMenuDefs
                     jsr          Menu_InitMenu
+
+* Main loop begin
 Main
 :menuLoop           jsr          DrawMenuBackground
                     jsr          DrawRomMessage
 
 :menuNoDrawLoop     jsr          MenuCheckKeyColor
                     bcc          :menuNoDrawLoop         ;hmm?
-:keyHit             cmp          #$8D                    ; ENTER
+:keyHit             cmp          #KEY_ENTER              ;8D
                     bne          :check1
 :enter              jsr          Menu_HandleSelection
                     bra          :menuLoop
-:check1             cmp          #$8B                    ; UP
-                    bne          :check2
-                    jsr          Menu_PrevItem
+
+:check1             cmp          #KEY_UPARROW            ;8B
+                    beq          :prevItem
+                    cmp          #KEY_LTARROW            ;88
+                    beq          :prevItem
+                    cmp          #KEY_DNARROW            ;8A
+                    beq          :nextItem
+                    cmp          #KEY_RTARROW            ;95
+                    beq          :nextItem
+:unknownKey         bra          :menuLoop
+:prevItem           jsr          Menu_PrevItem
                     bra          :menuNoDrawLoop
-:check2             cmp          #$8A                    ; DOWN
-                    bne          :noKey
-                    jsr          Menu_NextItem
+:nextItem           jsr          Menu_NextItem
                     bra          :menuNoDrawLoop
-:noKey              bra          :menuLoop
-* LOOOOOOOOOP ^^^^^^
+* Main loop end ^^^
+
+
 
 ColorizeMenu
 :loop
@@ -642,68 +652,68 @@ TestIterations      dw           #$00                    ; int
 
 MainMenuDefs
 :StartBank          hex          19,05                   ; x,y
-                    db           MenuOption_Hex          ; 1=hex input
+                    db           Menu_TypeHex            ; 1=hex input
                     db           01                      ; memory size (bytes)
                     da           TestStartBank           ; variable storage
 :EndBank            hex          22,05                   ; x,y
-                    db           MenuOption_Hex          ; 1=hex input
+                    db           Menu_TypeHex            ; 1=hex input
                     db           01                      ; memory size (bytes)
                     da           EndBank                 ; variable storage
 :StartAddr          hex          19,06                   ; x,y
-                    db           MenuOption_Hex          ; 1=hex input
+                    db           Menu_TypeHex            ; 1=hex input
                     db           02                      ; memory size (bytes)
                     da           StartAddr               ; variable storage
 :EndAddr            hex          20,06                   ; x,y
-                    db           MenuOption_Hex          ; 1=hex input
+                    db           Menu_TypeHex            ; 1=hex input
                     db           02                      ; memory size (bytes)
                     da           EndAddr                 ; variable storage
 :TestType           hex          19,07                   ; x,y
-                    db           MenuOption_List         ; 3=list input
+                    db           Menu_TypeList           ; 3=list input
                     db           11                      ; max len size (bytes), 3=option list
                     da           TestTypeTbl             ; params definition & storage
 :TestSize           hex          28,07                   ; x,y
-                    db           MenuOption_List         ; 3=list input
+                    db           Menu_TypeList           ; 3=list input
                     db           6                       ; max len size (bytes), 3=option list
                     da           TestSizeTbl             ; params definition & storage
 
 :HexPattern         hex          19,08                   ; x,y
-                    db           MenuOption_Hex          ; 3=list input
+                    db           Menu_TypeHex            ; 3=list input
                     db           02                      ; max len size (bytes), 3=option list <- can change when 8 bit??
                     da           HexPattern              ; params definition & storage
 :BinPattern         hex          19,09                   ; x,y
-                    db           MenuOption_Bin          ; 5?=bin
+                    db           Menu_TypeBin            ; 5?=bin
                     db           02                      ; max len size (bytes), 3=option list <- can change when 8 bit??
                     da           HexPattern              ; params definition & storage <- uses same space as above!! just different representation
 :Direction          hex          12,0B
-                    db           MenuOption_List
+                    db           Menu_TypeList
                     db           2
                     da           TestDirectionTbl
 :Parallel           hex          28,0B
-                    db           MenuOption_Bool
+                    db           Menu_TypeBool
                     db           2                       ; could be 8-bit or 16-bit bool
                     da           TestParallel
 :AdjacentWrite      hex          12,0C                   ; x,y
-                    db           MenuOption_Bool         ; 1=hex input
+                    db           Menu_TypeBool           ; 1=hex input
                     db           01                      ; memory size (bytes)
                     da           TestAdjacentWrite       ; variable storage
 :TestRefreshPause   hex          28,0C                   ; x,y
-                    db           MenuOption_Int          ; 1=hex input
+                    db           Menu_TypeInt            ; 1=hex input
                     db           01                      ; memory size (bytes)
                     da           TestRefreshPause        ; variable storage
 :ReadRepeat         hex          12,0D                   ; x,y
-                    db           MenuOption_Int          ; 1=hex input
+                    db           Menu_TypeInt            ; 1=hex input
                     db           03                      ; display/entry width. ints are 16-bit internally
                     da           TestReadRepeat          ; variable storage
 :WriteRepeat        hex          28,0D                   ; x,y
-                    db           MenuOption_Int          ; 1=hex input
+                    db           Menu_TypeInt            ; 1=hex input
                     db           03                      ; display/entry width. ints are 16-bit internally
                     da           TestWriteRepeat         ; variable storage
 :TestIterations     hex          12,0E                   ; x,y
-                    db           MenuOption_Int          ; 1=hex input
+                    db           Menu_TypeInt            ; 1=hex input
                     db           03                      ; display/entry width. ints are 16-bit internally
                     da           TestIterations          ; variable storage
 :BeginTest          hex          1C,0F                   ; x,y
-                    db           MenuOption_Action       ; 2=action
+                    db           Menu_TypeAction         ; 2=action
                     db           MenuStr_BeginTestL      ; menu string length
                     da           MenuStr_BeginTest       ; string storage
 MainMenuLen         equ          *-MainMenuDefs
@@ -788,3 +798,4 @@ BorderColor         db           0
                     ds           \
 _stash              ds           255
                     ds           \
+

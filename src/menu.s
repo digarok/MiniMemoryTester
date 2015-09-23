@@ -2,7 +2,7 @@
 ***  MENU LIBRARY
 sizeof_ItemStruct          =     #6
 *MyItem    hex 19,07            ;x,y positions
-*          db  MenuOption_List  ;type of input (see Menu_Types)
+*          db  Menu_TypeList  ;type of input (see Menu_Inputs)
 *          db  11               ;max size in bytes
 *          da  MyItemOptions    ;params definition & storage
 
@@ -246,14 +246,14 @@ Menu_GetSelectedStructPtr  lda   #0
 ** RETURN THE SCREEN WIDTH FOR VARIOUS INPUT TYPES
 * X= ItemType  A= SizeInBytes
 Menu_GetItemScreenWidth
-                           cpx   MenuOption_Char
+                           cpx   Menu_TypeChar
                            bne   :notChar
                            rts                              ;size already correct for char
-:notChar                   cpx   MenuOption_Hex
+:notChar                   cpx   Menu_TypeHex
                            bne   :notHex
                            asl                              ;*2 for printing 2 char per byte
                            rts
-:notHex                    cpx   MenuOption_Bin
+:notHex                    cpx   Menu_TypeBin
                            bne   :notBin
                            asl                              ; logic for binary is a little more detailed
                            asl                              ; because i add spacing for readability
@@ -265,16 +265,16 @@ Menu_GetItemScreenWidth
 :bigger                    inc
                            inc                              ; add 2 more spaces.
                            rts
-:notBin                    cpx   MenuOption_Int
+:notBin                    cpx   Menu_TypeInt
                            bne   :notInt
                            rts                              ;input width... internally maxint = FFFF
-:notInt                    cpx   MenuOption_Action
+:notInt                    cpx   Menu_TypeAction
                            bne   :notAction
                            rts                              ;should be defined in param from string length
-:notAction                 cpx   MenuOption_List
+:notAction                 cpx   Menu_TypeList
                            bne   :notList
                            rts                              ;should be defined in param from string length
-:notList                   cpx   MenuOption_Bool
+:notList                   cpx   Menu_TypeBool
                            bne   :notBool
                            lda   #3                         ;@todo: we'll use "off"/"on" for now.. revisit?
                            rts                              ;hmm.. undefined?   @TODO!!!
@@ -331,15 +331,15 @@ _menuSelectedX1            db    0
 _menuSelectedY             db    0
 
 * THESE ARE ALL OF THE MENU INPUT TYPES
-Menu_Types
-Menu_TypeTable             da    Menu_TypeChar,Menu_TypeHex,Menu_TypeAction,Menu_TypeList,Menu_TypeBool,Menu_TypeBin,Menu_TypeInt
-MenuOption_Char            equ   #0
-MenuOption_Hex             equ   #1
-MenuOption_Bin             equ   #5
-MenuOption_Int             equ   #6
-MenuOption_Action          equ   #2
-MenuOption_List            equ   #3
-MenuOption_Bool            equ   #4
+Menu_Inputs
+Menu_InputTable            da    Menu_InputChar,Menu_InputHex,Menu_InputAction,Menu_InputList,Menu_InputBool,Menu_InputBin,Menu_InputInt
+Menu_TypeChar            equ   #0
+Menu_TypeHex             equ   #1
+Menu_TypeBin             equ   #5
+Menu_TypeInt             equ   #6
+Menu_TypeAction          equ   #2
+Menu_TypeList            equ   #3
+Menu_TypeBool            equ   #4
 
 
 * $0 = ptr->MenuDefs
@@ -356,16 +356,16 @@ Menu_HandleSelection
                            tay
                            iny                              ;\
                            iny                              ; \
-                           lda   ($F0),y                    ;  > get MenuOption_Type, set up for jmp table
+                           lda   ($F0),y                    ;  > get Menu_TypeType, set up for jmp table
                            asl                              ; /
                            tax                              ;/
                            pla
-                           jmp   (Menu_TypeTable,x)
+                           jmp   (Menu_InputTable,x)
 
 
 * A= struct index for all of these.
-Menu_TypeChar              rts
-Menu_TypeBool              tay
+Menu_InputChar             rts
+Menu_InputBool             tay
                            iny                              ;skip x
                            iny                              ;skip y
                            iny                              ;skip length
@@ -382,10 +382,10 @@ Menu_TypeBool              tay
                            rts
 
 
-Menu_TypeBin               rts
-Menu_TypeInt               rts
+Menu_InputBin              rts
+Menu_InputInt              rts
 
-Menu_TypeHex               pha
+Menu_InputHex              pha
                            tay
                            lda   ($F0),y
                            tax
@@ -411,7 +411,7 @@ Menu_TypeHex               pha
                            jsr   GetHex
                            rts
 
-Menu_TypeAction            iny                              ;skip len byte
+Menu_InputAction           iny                              ;skip len byte
                            iny
                            lda   ($F0),y
                            sta   :ACTION+1
@@ -439,7 +439,7 @@ Menu_TypeAction            iny                              ;skip len byte
 * if up then prev item   \_ draw menu options
 * if down then next item /
 * if enter, done - when it gets back to menu loop, we should handle special logic there
-Menu_TypeList
+Menu_InputList
                            rts
 *** INPUT LIBRARY FOR MENU
 * Pass desired length in A
@@ -588,27 +588,27 @@ BCDBIN16                   clc
                            adc   BIN                        ;add 10's back to BIN
                            sta   BIN
                            lda   BCD
-                           and #$0f00 ;get 100's
+                           and   #$0f00                     ;get 100's
                            xba
-                           jsr TIMES10
-                           jsr TIMES10
+                           jsr   TIMES10
+                           jsr   TIMES10
                            clc
-                           adc BIN
-                           sta BIN
-                           lda BCD
-                           and #$f000 ;get 1000's
+                           adc   BIN
+                           sta   BIN
+                           lda   BCD
+                           and   #$f000                     ;get 1000's
                            xba
                            lsr
                            lsr
                            lsr
                            lsr
-                           jsr TIMES10
-                           jsr TIMES10
-                           jsr TIMES10
+                           jsr   TIMES10
+                           jsr   TIMES10
+                           jsr   TIMES10
                            clc
-                           adc BIN
-                           sta BIN
-                           sep #$30
+                           adc   BIN
+                           sta   BIN
+                           sep   #$30
                            RTS
 
 * 16-bit mode!!!
