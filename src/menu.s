@@ -130,7 +130,7 @@ Menu_DrawOptionBool        iny
                            lda   ($F0),y                    ;get da
                            sta   $F3                        ;storez
                            ldy   #0
-:prloop                    lda   ($F2),y                  ;get our bool value
+:prloop                    lda   ($F2),y                    ;get our bool value
                            bne   :on
 :off                       lda   #_menuBoolOffStr
                            ldy   #>_menuBoolOffStr
@@ -366,19 +366,19 @@ Menu_HandleSelection
 * A= struct index for all of these.
 Menu_TypeChar              rts
 Menu_TypeBool              tay
-                           iny ;skip x
-                           iny ;skip y
-                           iny ;skip length
+                           iny                              ;skip x
+                           iny                              ;skip y
+                           iny                              ;skip length
                            iny
 
-                           lda ($F0),y
-                           sta $F2
+                           lda   ($F0),y
+                           sta   $F2
                            iny
-                           lda ($F0),y
-                           sta $F3
-                           lda #1
-                           eor ($f2)
-                           sta ($f2)
+                           lda   ($F0),y
+                           sta   $F3
+                           lda   #1
+                           eor   ($f2)
+                           sta   ($f2)
                            rts
 
 
@@ -444,29 +444,29 @@ Menu_TypeList
 *** INPUT LIBRARY FOR MENU
 * Pass desired length in A
 GetHex
-        sta   _gethex_maxlen
+                           sta   _gethex_maxlen
                            stx   _gethex_resultptr
                            sty   _gethex_resultptr+1
                            stz   _gethex_current
-                           lda $24
-                          sta _gethex_screenx ;stash x.  gets clobbered by RDKEY
+                           lda   $24
+                           sta   _gethex_screenx            ;stash x.  gets clobbered by RDKEY
 
 :input                     jsr   RDKEY
 
                            cmp   #$9B                       ;esc = abort
                            bne   :notesc
                            rts
-:notesc                    cmp #$FF ;del
-                           beq :goBack
-                           cmp #$88
-                           bne :notBack
+:notesc                    cmp   #$FF                       ;del
+                           beq   :goBack
+                           cmp   #$88
+                           bne   :notBack
 :goBack
-                           lda _gethex_current
-                           beq :badChar ; otherwise result = -1
-                           dec _gethex_current
-                           dec _gethex_screenx
-                           GOXY _gethex_screenx;$25
-                           bra :input
+                           lda   _gethex_current
+                           beq   :badChar                   ; otherwise result = -1
+                           dec   _gethex_current
+                           dec   _gethex_screenx
+                           GOXY  _gethex_screenx;$25
+                           bra   :input
 :notBack                   cmp   #"9"+1
                            bcs   :notNum                    ;bge > 9
                            cmp   #"0"
@@ -491,7 +491,7 @@ GetHex
                            pla
                            ldy   _gethex_current
                            sta   _gethex_buffer,y
-                           inc _gethex_screenx
+                           inc   _gethex_screenx
                            iny
                            cpy   #_gethex_internalmax
                            bge   :internalmax
@@ -530,7 +530,7 @@ _gethex_resultptr          da    0000
 _gethex_maxlen             db    1
 _gethex_current            db    0
 _gethex_buffer             ds    _gethex_internalmax
-_gethex_screenx           db 0
+_gethex_screenx            db    0
 PrHexChar                  jsr   HexCharForByte
 
 HexCharForByte
@@ -542,3 +542,84 @@ HexCharForByte
 :alpha                     clc
                            adc   #"A"
                            rts
+
+
+BINBCD16                   SED                              ; Switch to decimal mode
+                           LDA   #0                         ; Ensure the result is clear
+                           STA   BCD+0
+                           STA   BCD+1
+                           STA   BCD+2
+                           LDX   #16                        ; The number of source bits
+
+:CNVBIT                    ASL   BIN+0                      ; Shift out one bit
+                           ROL   BIN+1
+                           LDA   BCD+0                      ; And add into result
+                           ADC   BCD+0
+                           STA   BCD+0
+                           LDA   BCD+1                      ; propagating any carry
+                           ADC   BCD+1
+                           STA   BCD+1
+                           LDA   BCD+2                      ; ... thru whole result
+                           ADC   BCD+2
+                           STA   BCD+2
+                           DEX                              ; And repeat for next bit
+                           BNE   :CNVBIT
+                           CLD                              ; Back to binary
+                           RTS
+BIN                        dw    $03e7
+BCD                        ds    3
+
+* 16-bit mode!!!
+BCDBIN16                   clc
+                           xce
+                           rep   #$30
+                           stz   BIN
+                           lda   BCD
+                           and   #$000F                     ;get 1's
+                           sta   BIN
+                           lda   BCD
+                           and   #$00F0                     ;get 10's
+                           lsr
+                           lsr
+                           lsr
+                           lsr
+                           jsr   TIMES10
+                           clc
+                           adc   BIN                        ;add 10's back to BIN
+                           sta   BIN
+                           lda   BCD
+                           and #$0f00 ;get 100's
+                           xba
+                           jsr TIMES10
+                           jsr TIMES10
+                           clc
+                           adc BIN
+                           sta BIN
+                           lda BCD
+                           and #$f000 ;get 1000's
+                           xba
+                           lsr
+                           lsr
+                           lsr
+                           lsr
+                           jsr TIMES10
+                           jsr TIMES10
+                           jsr TIMES10
+                           clc
+                           adc BIN
+                           sta BIN
+                           sep #$30
+                           RTS
+
+* 16-bit mode!!!
+TIMES10
+                           sta   :tensadd+1
+                           ldx   #10                        ;m*10
+:tensloop                  clc
+:tensadd                   adc   #$0000                     ;placeholder, gets overwritten above
+                           dex
+                           bne   :tensloop
+                           RTS
+
+
+                           mx    %00

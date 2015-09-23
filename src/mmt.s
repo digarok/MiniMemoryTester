@@ -12,6 +12,7 @@
 
 MLI                 equ          $bf00
 Init
+                    jsr BINBCD16
                     sei                                  ; disable interrupts
                     LDA          #$A0                    ;USE A BLANK SPACE TO
                     JSR          $C300                   ;TURN ON THE VIDEO FIRMWARE
@@ -610,7 +611,7 @@ _TestSize_0         asc          " 8-bit",$00
 _TestSize_1         asc          "16-bit",$00
 
 MenuStr_JSR         da           BeginTest               ; MUST PRECEDE MENU STRING!  Yes, it's magicly inferred. (-2)
-MenuStr_BeginTest   asc          "BEGIN TEST"
+MenuStr_BeginTest   asc          " BEGIN TEST "
 MenuStr_BeginTestL  equ          #*-MenuStr_BeginTest
 MenuStr_BeginTestE  db           00
 TestStartBank       db           #$06
@@ -701,7 +702,7 @@ MainMenuDefs
                     db           MenuOption_Int          ; 1=hex input
                     db           03                      ; display/entry width. ints are 16-bit internally
                     da           TestIterations          ; variable storage
-:BeginTest          hex          20,0F                   ; x,y
+:BeginTest          hex          1C,0F                   ; x,y
                     db           MenuOption_Action       ; 2=action
                     db           MenuStr_BeginTestL      ; menu string length
                     da           MenuStr_BeginTest       ; string storage
@@ -729,7 +730,7 @@ MainMenuStrs
                     asc          $1B,'ZZ',"  Adjacent Wr. [   ]   Refresh Pause [000]    ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZZ',"  Read Repeat  [000]   Write Repeat  [000]    ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZZ',"  Iterations   [000]                          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"                        (              )      ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,00
                     asc          $1B,'Z',"                                                                              ",'_',$18,00
                     asc          $1B,'Z',"                                                                              ",'_',$18,00
