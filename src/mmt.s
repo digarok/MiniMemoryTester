@@ -13,7 +13,6 @@
 MLI                 equ          $bf00
 Init
 
-                    jsr          BINBCD16
                     sei                                  ; disable interrupts
                     LDA          #$A0                    ;USE A BLANK SPACE TO
                     JSR          $C300                   ;TURN ON THE VIDEO FIRMWARE
@@ -634,7 +633,7 @@ HexPattern          dw           #$0000
 TestDirection       dw           #0                      ; list
 TestParallel        dw           #0                      ; bool is byte, but might change in future? :P
 TestAdjacentWrite   dw           #0                      ; bool is byte, but might change in future? :P
-TestRefreshPause    dw           #$01                    ; int
+TestRefreshPause    dw           #$03e7                  ; int
 TestReadRepeat      dw           #$01                    ; int
 TestWriteRepeat     dw           #$01                    ; int
 TestIterations      dw           #$00                    ; int
@@ -698,7 +697,7 @@ MainMenuDefs
                     da           TestAdjacentWrite       ; variable storage
 :TestRefreshPause   hex          28,0C                   ; x,y
                     db           Menu_TypeInt            ; 1=hex input
-                    db           01                      ; memory size (bytes)
+                    db           03                      ; display/entry width. ints are 16-bit internally
                     da           TestRefreshPause        ; variable storage
 :ReadRepeat         hex          12,0D                   ; x,y
                     db           Menu_TypeInt            ; 1=hex input
@@ -739,7 +738,7 @@ MainMenuStrs
                     asc          $1B,'ZZ',"  Direction    [  ]    Parallel R/W  [   ]    ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZZ',"  Adjacent Wr. [   ]   Refresh Pause [000]    ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZZ',"  Read Repeat  [000]   Write Repeat  [000]    ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
-                    asc          $1B,'ZZ',"  Iterations   [000]                          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                    asc          $1B,'ZZ',"  Iterations   [   ]                          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZZ',"                        (              )      ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                     asc          $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,00
                     asc          $1B,'Z',"                                                                              ",'_',$18,00

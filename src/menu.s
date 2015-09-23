@@ -143,8 +143,63 @@ _menuBoolOnStr             asc   " on",00
 _menuBoolOffStr            asc   "off",00
 * @todo make this more configurable
 
-Menu_DrawOptionInt         rts
+Menu_DrawOptionInt         iny
+                           lda   ($F0),y                    ;get len
+                           sta   _menuOptionLen
+                           iny
+                           lda   ($F0),y                    ;get da
+                           sta   $F2                        ;storez
+                           iny
+                           lda   ($F0),y                    ;get da
+                           sta   $F3                        ;storez
 
+                           ldy   #0
+                           lda   ($F2),y
+                           tax
+                           iny
+                           lda   ($F2),y
+                           tay
+
+
+                                                            ;convert to BCD
+                           jsr   BINtoBCD
+
+
+                           stx   _menuBCDInt+1
+                           sty   _menuBCDInt
+
+
+
+                           ldy   #0
+                           ldx   #0
+                           lda   _menuOptionLen
+                           lsr
+                           bcs   :oddmax
+
+:prloop                    lda   _menuBCDInt,y
+                           lsr
+                           lsr
+                           lsr
+                           lsr
+                           phy
+                           phx
+                           jsr   PRHEX
+                           plx
+                           ply
+                           inx
+:oddmax                    lda   _menuBCDInt,y
+                           and   #$0F
+                           phy
+                           phx
+                           jsr   PRHEX
+                           plx
+                           ply
+                           inx
+                           iny
+                           cpx   _menuOptionLen
+                           bne   :prloop
+                           rts
+_menuBCDInt                ds    4
 Menu_DrawOptionHex         iny
                            lda   ($F0),y                    ;get len
                            sta   _menuOptionLen
@@ -268,8 +323,7 @@ Menu_GetItemScreenWidth
 :notBin                    cpx   Menu_TypeInt
                            bne   :notInt
                            rts                              ;input width... internally maxint = FFFF
-:notInt                    cpx   Menu_TypeAction
-                           bne   :notAction
+:notInt                    bne   :notAction
                            rts                              ;should be defined in param from string length
 :notAction                 cpx   Menu_TypeList
                            bne   :notList
@@ -333,13 +387,13 @@ _menuSelectedY             db    0
 * THESE ARE ALL OF THE MENU INPUT TYPES
 Menu_Inputs
 Menu_InputTable            da    Menu_InputChar,Menu_InputHex,Menu_InputAction,Menu_InputList,Menu_InputBool,Menu_InputBin,Menu_InputInt
-Menu_TypeChar            equ   #0
-Menu_TypeHex             equ   #1
-Menu_TypeBin             equ   #5
-Menu_TypeInt             equ   #6
-Menu_TypeAction          equ   #2
-Menu_TypeList            equ   #3
-Menu_TypeBool            equ   #4
+Menu_TypeChar              equ   #0
+Menu_TypeHex               equ   #1
+Menu_TypeBin               equ   #5
+Menu_TypeInt               equ   #6
+Menu_TypeAction            equ   #2
+Menu_TypeList              equ   #3
+Menu_TypeBool              equ   #4
 
 
 * $0 = ptr->MenuDefs
@@ -383,7 +437,30 @@ Menu_InputBool             tay
 
 
 Menu_InputBin              rts
-Menu_InputInt              rts
+Menu_InputInt              pha
+                           tay
+                           lda   ($F0),y
+                           tax
+                           iny
+                           lda   ($F0),y
+                           tay
+                           jsr   GoXY
+                           pla
+                           clc
+                           adc   #3                         ;get max input length for int
+                           tay                              ; |
+                           lda   ($F0),y                    ; |
+                           pha                              ; store length
+                           iny
+                           lda   ($F0),y                    ;get low nibble of storage location
+                           pha                              ; store low nibble
+                           iny
+                           lda   ($F0),y                    ;get high nibble of storage location
+                           tay
+                           plx                              ;get low nibble
+                           pla                              ;get length
+                           jsr   GetInt
+                           rts
 
 Menu_InputHex              pha
                            tay
@@ -443,6 +520,7 @@ Menu_InputList
                            rts
 *** INPUT LIBRARY FOR MENU
 * Pass desired length in A
+* x/y= storage area
 GetHex
                            sta   _gethex_maxlen
                            stx   _gethex_resultptr
@@ -531,18 +609,135 @@ _gethex_maxlen             db    1
 _gethex_current            db    0
 _gethex_buffer             ds    _gethex_internalmax
 _gethex_screenx            db    0
-PrHexChar                  jsr   HexCharForByte
 
-HexCharForByte
-                           cmp   #9
-                           bcs   :alpha
-:number                    clc
-                           adc   #"0"
+*** INPUT LIBRARY FOR MENU
+* Pass desired length in A
+* x/y= storage area
+GetInt
+                           sta   _getint_maxlen
+                           stx   _getint_resultptr
+                           sty   _getint_resultptr+1
+                           stz   _getint_current
+                           lda   $24
+                           sta   _getint_screenx            ;stash x.  gets clobbered by RDKEY
+                           ldx   _getint_maxlen
+:clearbuffer               dex                              ;we need to zero our buffer
+                           stz   _getint_buffer,x           ;
+                           bne   :clearbuffer               ;
+
+:input                     jsr   RDKEY
+
+                           cmp   #KEY_ESC                   ;9B = abort
+                           bne   :notesc
                            rts
-:alpha                     clc
-                           adc   #"A"
+:notesc                    cmp   #KEY_DEL                   ;del
+                           beq   :goBack
+                           cmp   #KEY_LTARROW
+                           bne   :notBack
+:goBack
+                           lda   _getint_current
+                           beq   :badChar                   ; otherwise result = -1
+                           dec   _getint_current
+                           dec   _getint_screenx
+                           GOXY  _getint_screenx;$25
+                           bra   :input
+:notBack                   cmp   #"9"+1
+                           bcs   :badChar                   ;bge > 9
+                           cmp   #"0"
+                           bcc   :badChar                   ;
+                           sec
+                           sbc   #"0"
+                           bra   :storeInput
+:badChar                   jmp   :input
+:storeInput
+                           pha
+                           jsr   PRHEX
+                           pla
+                           ldy   _getint_current
+                           sta   _getint_buffer,y
+                           inc   _getint_screenx
+                           iny
+                           cpy   #_getint_internalmax
+                           bge   :internalmax
+                           cpy   _getint_maxlen
+                           bge   :passedmax
+                           sty   _getint_current
+                           bra   :input
+:internalmax
+:passedmax
+                           lda   _getint_resultptr
+                           sta   $0
+                           lda   _getint_resultptr+1
+                           sta   $1
+                           ldy   #0                         ;clear any existing data (otherwise OR mask error with odd input lengths)
+                           tya
+                           sta   ($0),y
+                           iny
+                           sta   ($0),y
+                           ldx   #0
+                           ldy   #0
+                           lda   _getint_maxlen
+                           lsr
+                           bcs   :oddmax
+:copyBuffer                lda   _getint_buffer,x
+                           asl                              ; move to upper nibble
+                           asl
+                           asl
+                           asl
+                           sta   ($0),y                     ; store
+                           inx
+:oddmax                    lda   _getint_buffer,x
+                           ora   ($0),y
+                           sta   ($0),y
+                           iny
+                           inx
+                           cpx   _getint_maxlen
+                           bcc   :copyBuffer                ;done copying to buffer like "0123" (still decimal)
+
+                           ldy   #$1                        ;@todo this is all wonky and a bit hackish
+                           lda   ($0),y
+                           tax
+                           dey
+                           lda   ($0),y
+                           tay
+                           jsr   BCDtoBIN
+                           tya
+                           ldy   #1
+                           sta   ($0),y
+                           dey
+                           txa
+                           sta   ($0),y
                            rts
 
+
+
+_getint_internalmax        equ   4
+_getint_resultptr          da    0000
+_getint_maxlen             db    1
+_getint_current            db    0
+_getint_buffer             ds    _getint_internalmax
+_getint_screenx            db    0
+
+
+
+
+* x/y = high/low
+BINtoBCD                   stx   BIN
+                           sty   BIN+1
+                           jsr   BINBCD16
+                           ldx   BCD
+                           ldy   BCD+1
+                           rts
+BCDtoBIN
+                           stx   BCD
+                           sty   BCD+1
+                           jsr   BCDBIN16
+                           ldx   BIN
+                           ldy   BIN+1
+                           rts
+
+BIN                        dw    $0000
+BCD                        ds    3
 
 BINBCD16                   SED                              ; Switch to decimal mode
                            LDA   #0                         ; Ensure the result is clear
@@ -565,12 +760,12 @@ BINBCD16                   SED                              ; Switch to decimal 
                            DEX                              ; And repeat for next bit
                            BNE   :CNVBIT
                            CLD                              ; Back to binary
-                           RTS
-BIN                        dw    $03e7
-BCD                        ds    3
+                           rts
+
 
 * 16-bit mode!!!
-BCDBIN16                   clc
+BCDBIN16
+                           clc
                            xce
                            rep   #$30
                            stz   BIN
@@ -609,17 +804,34 @@ BCDBIN16                   clc
                            adc   BIN
                            sta   BIN
                            sep   #$30
-                           RTS
+                           rts
 
+                           mx    %00
 * 16-bit mode!!!
 TIMES10
                            sta   :tensadd+1
-                           ldx   #10                        ;m*10
+                           ldx   #9                         ;9 loops since because initial value already in M
 :tensloop                  clc
 :tensadd                   adc   #$0000                     ;placeholder, gets overwritten above
                            dex
                            bne   :tensloop
-                           RTS
+                           rts
 
 
-                           mx    %00
+                           mx    %11
+BINBCDVARDUMP
+                           lda   BIN+1
+                           jsr   PRBYTE
+                           lda   BIN
+                           jsr   PRBYTE
+                           lda   #" "
+                           jsr   COUT
+                           lda   BCD+2
+                           jsr   PRBYTE
+                           lda   BCD+1
+                           jsr   PRBYTE
+                           lda   BCD
+                           jsr   PRBYTE
+                           jsr   RDKEY
+                           rts
+
