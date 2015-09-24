@@ -35,7 +35,7 @@ Main
 :menuLoop              jsr          DrawMenuBackground
                        jsr          DrawRomMessage
                        jsr          DrawRamMessages
-                                            
+
 
 :menuDrawOptionsLoop   jsr          MenuUpdateWordSize            ;always update this before draw in case of change
                        lda          #MainMenuDefs
@@ -191,7 +191,7 @@ LOG                    MAC
                        jsr          ConsoleLog
                        <<<
 
-_consoleBottom         = #23
+_consoleBottom         =            #23
 * Write out to console window
 ConsoleLog             pha
                        phy
@@ -268,20 +268,19 @@ BeginTest              LOG          Mesg_Starting
                        stz          _errorCounter
                        stz          _testIteration
                        stz          _testIteration+1
-                       ldx          #36
-                       ldy          #04
-                       lda          #5
-                       jsr          PrintBox30
 
 
-BeginTestPass          PRINTXY      #38;#05;Mesg_TestPass
+
+BeginTestPass
+                       PRINTXY      #55;#10;Mesg_TestPass
+
                        inc          _testIteration
                        bne          :noroll
                        inc          _testIteration+1
 :noroll                lda          _testIteration+1
                        ldx          _testIteration
                        jsr          PRNTAX
-                       PRINTXY      #38;#7;Mesg_Writing
+                       PRINTXY      #55;#12;Mesg_Writing
 
                        clc                                        ; WRITE START
                        xce
@@ -321,7 +320,7 @@ BeginTestPass          PRINTXY      #38;#05;Mesg_TestPass
 
                        jsr          Pauser                        ; PAUSE
 
-                       PRINTXY      #38;#7;Mesg_Reading           ; READ PREP
+                       PRINTXY      #55;#12;Mesg_Reading          ; READ PREP
 
                        clc                                        ; READ START
                        xce
@@ -390,35 +389,11 @@ Mesg_Reading           asc          "Reading: ",00
 Mesg_Errors            asc          " Errors:  ",$00
 Mesg_TestPass          asc          "   Pass:  ",00
 Mesg_Blank             asc          "                 ",00
-Mesg_BoxTop30          asc          $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,$8D,00
-Mesg_BoxMid30          asc          $1B,'Z',"                            ",'_',$18,$8D,$00
-Mesg_BoxBot30          asc          $1B,'Z',"____________________________",'_',$18,$8D,$00
-*Mesg_ConsoleTop	asc $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,$8D,00
+
 Mesg_ConsoleTop        asc          $1B,'ZLLLLLLLLLLLLLLL',$18,' Console Log ',$1B,'LLLLLLLLLLLLLLLLL_',$18,$8D,00
 Mesg_ConsoleMid        asc          $1B,'Z',"                                             ",'_',$18,$8D,00
 Mesg_ConsoleBot        asc          $1B,'Z',"_____________________________________________",'_',$18,$8D,00
 
-* x, y, a=height
-PrintBox30             stx          _prbox_x
-                       sta          _prbox_height
-                       jsr          GoXY
-                       lda          #Mesg_BoxTop30
-                       ldy          #>Mesg_BoxTop30
-                       jsr          PrintString
-:midloop               ldx          _prbox_x
-                       stx          $24
-                       lda          #Mesg_BoxMid30
-                       ldy          #>Mesg_BoxMid30
-                       jsr          PrintString
-                       dec          _prbox_height
-                       bne          :midloop
-
-                       ldx          _prbox_x
-                       stx          $24
-                       lda          #Mesg_BoxBot30
-                       ldy          #>Mesg_BoxBot30
-                       jsr          PrintString
-                       rts
 * x, y, a=height
 PrintConsole           stx          _prbox_x
                        sta          _prbox_height
@@ -452,7 +427,7 @@ PrintTestError
                        inc          _errorCounter
                        bne          :noRoll
                        inc          _errorCounter+1
-:noRoll                PRINTXY      #38;#6;Mesg_Errors
+:noRoll                PRINTXY      #55;#11;Mesg_Errors
                        ldx          _errorCounter
                        lda          _errorCounter+1
                        jsr          PRNTAX
@@ -514,7 +489,7 @@ PrintTestCurrent       pha
                        stx          _stash                        ; save real X
                        sec
                        xce
-                       GOXY         #48;#7
+                       GOXY         #65;#12
                        lda          CurBank
                        sta          :corruptme+3
                        jsr          PRBYTE
@@ -592,7 +567,7 @@ PRBIN                  pha
                        rts
 
 Pauser
-                       PRINTXY      #38;#8;Mesg_Waiting
+                       PRINTXY      #55;#13;Mesg_Waiting
                        ldy          #60
                        ldx          TestRefreshPause
                        beq          :donepause
@@ -610,13 +585,13 @@ Pauser
                        ldy          #60
                        bra          :secondloop
 :donepause
-                       PRINTXY      #38;#8;Mesg_Blank
+                       PRINTXY      #55;#13;Mesg_Blank
                        rts
 PrintTimerVal
                        phx
                        phy
                        txa
-                       GOXY         #48;#8
+                       GOXY         #65;#13
                        ply
                        plx
                        txa
@@ -684,7 +659,7 @@ EndAddr                dw           #$FFFF
 HexPattern             dw           #$0000
 
 TestDirection          dw           #0                            ; list
-TestTwoPass           dw           #0                            ; bool is byte, but might change in future? :P
+TestTwoPass            dw           #0                            ; bool is byte, but might change in future? :P
 TestAdjacentWrite      dw           #0                            ; bool is byte, but might change in future? :P
 TestRefreshPause       dw           #$00                          ; int
 TestReadRepeat         dw           #$01                          ; int
@@ -740,7 +715,7 @@ _binpatternsize        db           02                            ; max len size
                        db           Menu_TypeList
                        db           2
                        da           TestDirectionTbl
-:TwoPass              hex          28,0B
+:TwoPass               hex          28,0B
                        db           Menu_TypeBool
                        db           2                             ; could be 8-bit or 16-bit bool
                        da           TestTwoPass
@@ -821,7 +796,7 @@ MainMenuStrs
                        asc          $1B,'Z',"                                                                              ",'_',$18,00
                        asc          $1B,'Z',"                                                                              ",'_',$18,00
                        asc          $1B,'Z',"                                                                             _",'_',$18,00
-                       asc          $1B,'Z',"_____________________________________________________________________________",'_', $18,00
+                       asc          $1B,'Z',"_____________________________________________________________________________",'_',  $18,00
 
 *	asc "     ABCDEFGHIZKLMNOPQRSTUVWXYZ ",$8D,$00
 *	asc $1B,'     ABCDEFGHIZKLMNOPQRSTUVWXYZ ',$1B,$8D,$00
@@ -969,3 +944,4 @@ BankRAMSlowBuiltIn     =            3
 BankRAMFastBuiltIn     =            4
 BankRAMFastExpansion   =            5
 BankNoRAM              =            0
+
