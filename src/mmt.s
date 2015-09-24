@@ -35,6 +35,8 @@ Main
 :menuLoop              jsr          DrawMenuBackground
                        jsr          DrawRomMessage
                        jsr          DrawRamMessages
+                                            
+
 :menuDrawOptionsLoop   jsr          MenuUpdateWordSize            ;always update this before draw in case of change
                        lda          #MainMenuDefs
                        ldy          #>MainMenuDefs
@@ -189,14 +191,14 @@ LOG                    MAC
                        jsr          ConsoleLog
                        <<<
 
-
+_consoleBottom         = #23
 * Write out to console window
 ConsoleLog             pha
                        phy
                        jsr          WinConsole
                        lda          #0                            ;settings to bottom-left of window
                        sta          $24
-                       lda          #20
+                       lda          #_consoleBottom-1
                        sta          $25
                        jsr          VTAB
                        lda          #$8D                          ;pre-fix CR
@@ -208,13 +210,13 @@ ConsoleLog             pha
                        rts
 
 * Set console windowing
-WinConsole             lda          #52
+WinConsole             lda          #3
                        sta          $20                           ;left edge
-                       lda          #26
+                       lda          #75
                        sta          $21                           ;width
-                       lda          #5
+                       lda          #17
                        sta          $22                           ;top edge
-                       lda          #16
+                       lda          #_consoleBottom
                        sta          $23                           ;bottom edge
                        rts
 
@@ -682,7 +684,7 @@ EndAddr                dw           #$FFFF
 HexPattern             dw           #$0000
 
 TestDirection          dw           #0                            ; list
-TestParallel           dw           #0                            ; bool is byte, but might change in future? :P
+TestTwoPass           dw           #0                            ; bool is byte, but might change in future? :P
 TestAdjacentWrite      dw           #0                            ; bool is byte, but might change in future? :P
 TestRefreshPause       dw           #$00                          ; int
 TestReadRepeat         dw           #$01                          ; int
@@ -738,10 +740,10 @@ _binpatternsize        db           02                            ; max len size
                        db           Menu_TypeList
                        db           2
                        da           TestDirectionTbl
-:Parallel              hex          28,0B
+:TwoPass              hex          28,0B
                        db           Menu_TypeBool
                        db           2                             ; could be 8-bit or 16-bit bool
-                       da           TestParallel
+                       da           TestTwoPass
 :AdjacentWrite         hex          12,0C                         ; x,y
                        db           Menu_TypeBool                 ; 1=hex input
                        db           01                            ; memory size (bytes)
@@ -807,7 +809,7 @@ MainMenuStrs
                        asc          $1B,'ZZ',"       Hex Pattern  :                         ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                        asc          $1B,'ZZ',"       Bin Pattern  :                         ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                        asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
-                       asc          $1B,'ZZ',"  Direction            Parallel R/W           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                       asc          $1B,'ZZ',"  Direction            Two-Pass R/W           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                        asc          $1B,'ZZ',"  Adjacent Wr.         Wait on Error          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                        asc          $1B,'ZZ',"  Read Repeat          Write Repeat           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                        asc          $1B,'ZZ',"  Iterations           Refresh Pause          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
@@ -818,7 +820,8 @@ MainMenuStrs
                        asc          $1B,'Z',"                                                                              ",'_',$18,00
                        asc          $1B,'Z',"                                                                              ",'_',$18,00
                        asc          $1B,'Z',"                                                                              ",'_',$18,00
-                       asc          $1B,'Z',"______________________________________________________________________________",'_',$18,00
+                       asc          $1B,'Z',"                                                                             _",'_',$18,00
+                       asc          $1B,'Z',"_____________________________________________________________________________",'_', $18,00
 
 *	asc "     ABCDEFGHIZKLMNOPQRSTUVWXYZ ",$8D,$00
 *	asc $1B,'     ABCDEFGHIZKLMNOPQRSTUVWXYZ ',$1B,$8D,$00
