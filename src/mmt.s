@@ -902,12 +902,43 @@ DetectRam
                        inx
                        bra          :highloop
 
-:done                  rts
+:done                  bra :findKB
 
 :notused               lda          #BankNoRAM
                        sta          BankMap,x
                        bra          :continue
 
+:findKB
+  lda          BankExpansionRam              ;number of banks
+  clc
+  xce
+  rep          #$30
+  mx           %00
+  and          #$00FF                        ;clear artifacts? can't remember state of B
+  asl                                        ;*2
+  asl                                        ;*4
+  asl                                        ;*8
+  asl                                        ;*16
+  asl                                        ;*32
+  asl                                        ;*64
+  sta          BankExpansionRamKB
+
+  lda GSROM ;now check (hardcode really) build-in ram
+  cmp #3
+  bne :notrom3
+:rom3 lda #1024
+ sta BankBuiltInRamKB
+ rts
+:notrom3 lda #256K
+ sta BankBuiltInRamKB
+  sep          #$30
+
+  rts
+
+
+
+BankExpansionRamKB     ds 2
+BankBuiltInRamKB        ds 2
 BankExpansionRam       ds           1
 BankExpansionLowest    ds           1
 BankExpansionHighest   ds           1
