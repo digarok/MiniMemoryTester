@@ -10,10 +10,9 @@
                        dsk          mtsystem                      ; tell compiler what name for output file
                        put          applerom
 
-MLI                    equ          $bf00
-Init
-
-                       sei                                        ; disable interrupts
+Init                   sei                                        ; disable interrupts
+                       clc
+                       xce                                        ;enable full 65816
                        LDA          #$A0                          ;USE A BLANK SPACE TO
                        JSR          $C300                         ;TURN ON THE VIDEO FIRMWARE
 
@@ -29,13 +28,18 @@ Init
                        lda          #MainMenuDefs
                        ldx          #>MainMenuDefs
                        jsr          Menu_InitMenu
-
-* Main loop begin
+                       ldx          #Number
+                       ldy          #>Number
+                       jsr          PrintInt
+Me                     jmp          Me
+Number                 dw           #1234
+*
+* Main Menu loop begin
+*
 Main
 :menuLoop              jsr          DrawMenuBackground
                        jsr          DrawRomMessage
                        jsr          DrawRamMessages
-
 
 :menuDrawOptionsLoop   jsr          MenuUpdateWordSize            ;always update this before draw in case of change
                        lda          #MainMenuDefs
@@ -65,76 +69,12 @@ Main
                        jsr          Menu_UndrawSelectedAll        ;hack for blinky cursor
                        stz          _ticker
                        bra          :menuNoDrawLoop
-* Main loop end ^^^
+*
+* Main Menu loop end ^^^
+*
 
 
 
-ColorizeMenu
-:loop
-                       lda          #6
-                       jsr          WaitSCB
-                       lda          #$A0                          ; green
-                       sta          $c022
-
-                       lda          #7
-                       jsr          WaitSCB
-                       lda          #$c0                          ; green
-                       sta          $c022
-
-                       lda          #9
-                       jsr          WaitSCB
-                       lda          #$d0                          ; yello
-                       sta          $c022
-
-                       lda          #10
-                       jsr          WaitSCB
-                       lda          #$90                          ; orange
-                       sta          $c022
-
-
-                       lda          #11
-                       jsr          WaitSCB
-                       lda          #$10                          ; red
-                       sta          $c022
-
-                       lda          #12
-                       jsr          WaitSCB
-                       lda          #$30                          ; purple
-                       sta          $c022
-
-                       lda          #13
-                       jsr          WaitSCB
-                       lda          #$70                          ; bblue
-                       sta          $c022
-
-                       lda          #15
-                       jsr          WaitSCB
-                       lda          #$50                          ; grey
-                       sta          $c022
-
-                       lda          #16
-                       jsr          WaitSCB
-                       lda          #$f0                          ; white
-                       sta          $c022
-                       rts
-
-WaitSCB
-                       sta          :val+1
-                       ldx          #2                            ; to check twice
-:waitloop              lda          $c02f
-                       asl
-                       lda          $c02e
-                       rol
-:val                   cmp          #$00
-                       bne          :waitloop
-                       dex
-                       bne          :waitloop
-                                                                  ; the problem is we can get the LAST
-                                                                  ; horizcnt even/odd right as it changes
-                                                                  ; and start early or something?
-
-                       rts
-MAXSCB                 db           0
 
 DrawMenuBackground     jsr          HOME
                        lda          #MainMenuStrs
@@ -143,27 +83,28 @@ DrawMenuBackground     jsr          HOME
                        jsr          PrintStringsX
                        rts
 
-
+* Prints "Apple IIgs ROM 0x"
 DrawRomMessage
                        PRINTXY      #55;#06;Mesg_Rom
                        lda          GSROM
                        jsr          PRBYTE
                        rts
 
+* Prints "Built-In RAM  xxxK"
+*        "Expansion RAM yyyyK"
 DrawRamMessages
-
                        lda          GSROM
                        cmp          #3
                        bne          :rom0or1
 :rom3                  PRINTXY      #55;#07;Mesg_InternalRam1024
                        bra          :drawExpansionMessage
 :rom0or1               PRINTXY      #55;#07;Mesg_InternalRam256
-
 :drawExpansionMessage  PRINTXY      #55;#08;Mesg_ExpansionRam
                        lda          BankExpansionRam              ;number of banks
                        clc
                        xce
                        rep          #$30
+                       mx           %00
                        and          #$00FF                        ;clear artifacts? can't remember state of B
                        asl                                        ;*2
                        asl                                        ;*4
@@ -247,22 +188,92 @@ WinFull                stz          $20
 
 
 
+*
+*    #######                                      ###    ###    ###
+*       #    ######  ####  ##### ###### #####     ###    ###    ###
+*       #    #      #        #   #      #    #    ###    ###    ###
+*       #    #####   ####    #   #####  #    #     #      #      #
+*       #    #           #   #   #      #####
+*       #    #      #    #   #   #      #   #     ###    ###    ###
+*       #    ######  ####    #   ###### #    #    ###    ###    ###
+*
+*
+TestInit               LOG          Mesg_Starting
+                       stz          _errorCounter
+                       stz          _testIteration
+                       stz          _testIteration+1
+                       stz          CurBank
 
-Quit                   jsr          MLI                           ; first actual command, call ProDOS vector
-                       dfb          $65                           ; with "quit" request ($65)
-                       da           QuitParm
-                       bcs          Error
-                       brk          $00                           ; shouldn't ever  here!
-
-QuitParm               dfb          4                             ; number of parameters
-                       dfb          0                             ; standard quit type
-                       da           $0000                         ; not needed when using standard quit
-                       dfb          0                             ; not used
-                       da           $0000                         ; not used
 
 
-Error                  brk          $00                           ; shouldn't be here either
+TestMasterLoop
+                       jsr          TestGetNextBank               ;sets initial bank when CurBank = 0
+                       jsr          TestPastFinalBank
+                       bcs          :NextIteration
 
+
+:NextIteration         inc          _testIteration
+
+
+TestPastFinalBank      lda          TestDirection
+                       bne          :descending
+:ascending             lda          EndBank
+                       cmp          CurBank                       ;is EndBank < CurBank ?
+                       bcc          :yes                          ;past final bank
+                       bcs          :no
+:descending            lda          CurBank
+                       cmp          StartBank                     ;is CurBank < StartBank ?
+                       bcc          :yes
+                       bcs          :no
+
+:yes                   sec
+                       rts
+:no                    clc
+                       rts
+
+TestGetNextBank        lda          TestDirection
+                       bne          :descending
+:ascending             lda          CurBank
+                       bne          :notInitialBank
+                       lda          StartBank
+                       sta          CurBank
+                       rts
+:notInitialBank        inc          CurBank
+                       rts
+:descending            lda          CurBank
+                       bne          :notInitialBank2
+                       lda          EndBank
+                       sta          CurBank
+                       rts
+:notInitialBank2       dec          CurBank
+                       rts
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+*
+*
+*     #####
+*    #     # #      #####
+*    #     # #      #    #
+*    #     # #      #    #
+*    #     # #      #    #
+*    #     # #      #    #
+*     #####  ###### #####
+*
+*
 
 BeginTest              LOG          Mesg_Starting
                        stz          _errorCounter
@@ -282,7 +293,8 @@ BeginTestPass
                        jsr          PRNTAX
                        PRINTXY      #55;#12;Mesg_Writing
 
-                       clc                                        ; WRITE START
+                                                                  ; WRITE START
+                       clc
                        xce
                        rep          $10                           ; long x, short a
                        lda          StartBank
@@ -315,14 +327,14 @@ BeginTestPass
                        bcc          :noquit2
                        jmp          :escpressed
 :noquit2               sep          $10
-                       sec
-                       xce                                        ; WRITE END
+                                                                  ; WRITE END
 
                        jsr          Pauser                        ; PAUSE
 
                        PRINTXY      #55;#12;Mesg_Reading          ; READ PREP
 
-                       clc                                        ; READ START
+                                                                  ; READ START
+                       clc
                        xce
                        rep          $10                           ; long x, short a
                        lda          StartBank
@@ -359,8 +371,7 @@ BeginTestPass
                        dec          CurBank                       ; so many bad hacks
                        jsr          PrintTestCurrent              ; print final score ;)
                        sep          $10
-                       sec
-                       xce                                        ; WRITE END
+                                                                  ; WRITE END
 
 
                        jsr          Pauser                        ; PAUSE
@@ -368,8 +379,7 @@ BeginTestPass
                        sta          $C034
                        jmp          BeginTestPass
 :escpressed            sep          $10
-                       sec
-                       xce
+
                        rts
 
 _testIteration         ds           8
@@ -421,8 +431,7 @@ _prbox_height          db           0
 
 * called with short M,  long X
 PrintTestError
-                       sec
-                       xce
+
                        sep          $30
                        inc          _errorCounter
                        bne          :noRoll
@@ -487,8 +496,7 @@ Mesg_Arrow             asc          $1B,'SU',$18,00
 PrintTestCurrent       pha
                        phy
                        stx          _stash                        ; save real X
-                       sec
-                       xce
+                       sep          #$30                          ;in case?  there was a sec xce combo here
                        GOXY         #65;#12
                        lda          CurBank
                        sta          :corruptme+3
@@ -598,9 +606,6 @@ PrintTimerVal
                        jsr          PRBYTE
                        rts
 
-**************************************************
-* Awesome PRNG thx to White Flame (aka David Holz)
-**************************************************
 GetRandTrash                                                      ; USE ONLY WITH CORRUPTOR
                        lda          _randomTrashByte
                        beq          :doEor
@@ -610,6 +615,18 @@ GetRandTrash                                                      ; USE ONLY WIT
 :noEor                 sta          _randomTrashByte
                        rts
 _randomTrashByte       db           0
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -796,54 +813,12 @@ MainMenuStrs
                        asc          $1B,'Z',"                                                                              ",'_',$18,00
                        asc          $1B,'Z',"                                                                              ",'_',$18,00
                        asc          $1B,'Z',"                                                                             _",'_',$18,00
-                       asc          $1B,'Z',"_____________________________________________________________________________",'_',  $18,00
-
-*	asc "     ABCDEFGHIZKLMNOPQRSTUVWXYZ ",$8D,$00
-*	asc $1B,'     ABCDEFGHIZKLMNOPQRSTUVWXYZ ',$1B,$8D,$00
-
+                       asc          $1B,'Z',"_____________________________________________________________________________",'_',$18,00
                        hex          00,00
 
 
 
-MenuCheckKeyColor      jsr          ColorizeMenu
-                       lda          _ticker
-                       bne          :skipDraw                     ; we want to avoid updating when nothing is happening... "Save the Cycles!!" ;)
-                       jsr          Menu_HighlightSelected
-:skipDraw              cmp          #12
-                       bne          :skipUndraw
-                       jsr          Menu_UndrawSelectedAll
-:skipUndraw            cmp          #16
-                       bne          :noReset
-                       stz          _ticker
-                       jmp          CheckKey                      ; Will RTS from CheckKey
-:noReset               inc          _ticker
-                       jmp          CheckKey                      ; Will RTS from CheckKey
-_ticker                dw           0
 
-CheckKey               lda          KEY
-                       bpl          :noKey
-                       sta          STROBE
-                       sec
-                       rts
-:noKey                 clc
-                       rts
-
-
-
-WaitKey
-:kloop
-                       jsr          ColorizeMenu
-                       lda          KEY
-                       bpl          :kloop
-                       sta          STROBE
-                       cmp          #"b"                          ; REMOVE DEBUG
-                       bne          :nobreak
-                       brk          $75
-:nobreak
-                       rts
-
-                       put          strings.s
-                       put          menu.s
 BorderColor            db           0
                        ds           \
 _stash                 ds           255
@@ -945,3 +920,42 @@ BankRAMFastBuiltIn     =            4
 BankRAMFastExpansion   =            5
 BankNoRAM              =            0
 
+
+* Takes address in X/Y and prints out Int stored there
+PrintInt
+                       stx          :loc+1
+                       inx
+                       stx          :loc2+1
+                       sty          :loc+2
+                       sty          :loc2+2
+
+:loc                   ldx          $2000                         ;overwrite
+:loc2                  ldy          $2000                         ;overwrite
+                       jsr          BINtoBCD
+                       phx
+                       tya
+                       jsr          PRBYTE
+                       pla
+                       jsr          PRBYTE
+                       rts
+
+MLI                    equ          $bf00
+
+Quit                   jsr          MLI                           ; first actual command, call ProDOS vector
+                       dfb          $65                           ; with "quit" request ($65)
+                       da           QuitParm
+                       bcs          Error
+                       brk          $00                           ; shouldn't ever  here!
+
+QuitParm               dfb          4                             ; number of parameters
+                       dfb          0                             ; standard quit type
+                       da           $0000                         ; not needed when using standard quit
+                       dfb          0                             ; not used
+                       da           $0000                         ; not used
+
+
+Error                  brk          $00                           ; shouldn't be here either
+
+                       put          misc
+                       put          strings.s
+                       put          menu.s
