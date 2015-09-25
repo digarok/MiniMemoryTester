@@ -28,11 +28,7 @@ Init                   sei                                        ; disable inte
                        lda          #MainMenuDefs
                        ldx          #>MainMenuDefs
                        jsr          Menu_InitMenu
-                       ldx          #Number
-                       ldy          #>Number
-                       jsr          PrintInt
-Me                     jmp          Me
-Number                 dw           #1234
+
 *
 * Main Menu loop begin
 *
@@ -40,6 +36,9 @@ Main
 :menuLoop              jsr          DrawMenuBackground
                        jsr          DrawRomMessage
                        jsr          DrawRamMessages
+
+                       jsr          LogWelcomeMessage
+                       jsr          LogRamMessages
 
 :menuDrawOptionsLoop   jsr          MenuUpdateWordSize            ;always update this before draw in case of change
                        lda          #MainMenuDefs
@@ -100,88 +99,30 @@ DrawRamMessages
                        bra          :drawExpansionMessage
 :rom0or1               PRINTXY      #55;#07;Mesg_InternalRam256
 :drawExpansionMessage  PRINTXY      #55;#08;Mesg_ExpansionRam
-                       lda          BankExpansionRam              ;number of banks
-                       clc
-                       xce
-                       rep          #$30
-                       mx           %00
-                       and          #$00FF                        ;clear artifacts? can't remember state of B
-                       asl                                        ;*2
-                       asl                                        ;*4
-                       asl                                        ;*8
-                       asl                                        ;*16
-                       asl                                        ;*32
-                       asl                                        ;*64
-                       sta          _stash
-                       sep          #$30
-                       ldx          _stash
-                       ldy          _stash+1
-                       jsr          BINtoBCD
-                       phx
-                       tya
-                       jsr          PRBYTE
-                       pla
-                       jsr          PRBYTE
+                       ldx          #BankExpansionRamKB
+                       ldy          #>BankExpansionRamKB
+                       jsr          PrintInt
                        lda          #"K"
                        jsr          COUT
                        rts
 
-LOG                    MAC
-                       lda          #]1
-                       ldy          #>]1
-                       jsr          ConsoleLog
-                       <<<
-
-_consoleBottom         =            #23
-* Write out to console window
-ConsoleLog             pha
-                       phy
-                       jsr          WinConsole
-                       lda          #0                            ;settings to bottom-left of window
-                       sta          $24
-                       lda          #_consoleBottom-1
-                       sta          $25
-                       jsr          VTAB
-                       lda          #$8D                          ;pre-fix CR
-                       jsr          COUT
-                       ply
-                       pla
-                       jsr          PrintString
+LogWelcomeMessage      jsr          WinConsole
+                       LOG          Mesg_Welcome
                        jsr          WinFull
                        rts
 
-* Set console windowing
-WinConsole             lda          #3
-                       sta          $20                           ;left edge
-                       lda          #75
-                       sta          $21                           ;width
-                       lda          #17
-                       sta          $22                           ;top edge
-                       lda          #_consoleBottom
-                       sta          $23                           ;bottom edge
+LogRamMessages         jsr          WinConsole
+                       LOG          Mesg_DetectedBanks
+
+                       lda          BankExpansionLowest
+                       jsr          PRBYTE
+                       lda          #Mesg_ToBank
+                       ldy          #>Mesg_ToBank
+                       jsr          PrintString
+                       lda          BankExpansionHighest
+                       jsr          PRBYTE
+                       jsr          WinFull
                        rts
-
-* Set info windowing
-WinInfo                lda          #52
-                       sta          $20                           ;left edge
-                       lda          #26
-                       sta          $21                           ;width
-                       lda          #5
-                       sta          $22                           ;top edge
-                       lda          #16
-                       sta          $23                           ;bottom edge
-                       rts
-
-* Restore full screen windowing
-WinFull                stz          $20
-                       stz          $22
-                       lda          #80
-                       sta          $21
-                       lda          #24
-                       sta          $23
-                       rts
-
-
 
 
 
@@ -386,6 +327,7 @@ _testIteration         ds           8
 _errorCounter          ds           8
 UpdateScanInterval     equ          #$1000
 
+Mesg_Welcome           asc          "Welcome to Mini Memory Tester v0.3 by Dagen Brock",$8D,00
 Mesg_InternalRam256    asc          "Built-In RAM  256K",00
 Mesg_InternalRam1024   asc          "Built-In RAM  1024K",00
 Mesg_ExpansionRam      asc          "Expansion RAM ",00
@@ -399,36 +341,21 @@ Mesg_Reading           asc          "Reading: ",00
 Mesg_Errors            asc          " Errors:  ",$00
 Mesg_TestPass          asc          "   Pass:  ",00
 Mesg_Blank             asc          "                 ",00
+Mesg_DetectedBanks     asc          "Setting default start/end banks to detected memory expansion: $",00
+Mesg_ToBank            asc          " to $",00
 
 Mesg_ConsoleTop        asc          $1B,'ZLLLLLLLLLLLLLLL',$18,' Console Log ',$1B,'LLLLLLLLLLLLLLLLL_',$18,$8D,00
 Mesg_ConsoleMid        asc          $1B,'Z',"                                             ",'_',$18,$8D,00
 Mesg_ConsoleBot        asc          $1B,'Z',"_____________________________________________",'_',$18,$8D,00
 
-* x, y, a=height
-PrintConsole           stx          _prbox_x
-                       sta          _prbox_height
-                       jsr          GoXY
-                       lda          #Mesg_ConsoleTop
-                       ldy          #>Mesg_ConsoleTop
-                       jsr          PrintString
-:midloop               ldx          _prbox_x
-                       stx          $24
-                       lda          #Mesg_ConsoleMid
-                       ldy          #>Mesg_ConsoleMid
-                       jsr          PrintString
-                       dec          _prbox_height
-                       bne          :midloop
+* Error message strings
+Mesg_E1                asc          "Bad Read - Pass ",00
+Mesg_E2                asc          "   Location: ",00
+Mesg_E3                asc          "Wrote: $",00
+Mesg_E4                asc          " ",$1B,'SU',$18," Read: $",00
+Mesg_Arrow             asc          $1B,'SU',$18,00
 
-                       ldx          _prbox_x
-                       stx          $24
-                       lda          #Mesg_ConsoleBot
-                       ldy          #>Mesg_ConsoleBot
-                       jsr          PrintString
-                       rts
-_prbox_x               db           0
-_prbox_height          db           0
-
-
+                       mx           %10                           ;i think?
 * called with short M,  long X
 PrintTestError
 
@@ -456,7 +383,6 @@ PrintTestError
                        jsr          PRNTAX
                        lda          #$8D
                        jsr          COUT
-                       jsr          WinFull
                        LOG          Mesg_E3
                        lda          _stash+1
                        jsr          PRBYTE
@@ -475,15 +401,11 @@ PrintTestError
                        jsr          COUT
                        lda          _stash
                        jsr          PRBIN
+                       jsr          WinFull
                        clc
                        xce
                        rep          $10
                        rts
-Mesg_E1                asc          "Bad Read - Pass ",00
-Mesg_E2                asc          "   Location: ",00
-Mesg_E3                asc          "Wrote: $",00
-Mesg_E4                asc          " ",$1B,'SU',$18," Read: $",00
-Mesg_Arrow             asc          $1B,'SU',$18,00
 
 *Mesg_Error0	asc "Error: Bad Read Pass 0000  Location: 00/1234"
 *Mesg_Error0	asc "Wrote: $00 %12345678    Read: $00 %12345678"
@@ -902,43 +824,43 @@ DetectRam
                        inx
                        bra          :highloop
 
-:done                  bra :findKB
+:done                  bra          :findKB
 
 :notused               lda          #BankNoRAM
                        sta          BankMap,x
                        bra          :continue
 
 :findKB
-  lda          BankExpansionRam              ;number of banks
-  clc
-  xce
-  rep          #$30
-  mx           %00
-  and          #$00FF                        ;clear artifacts? can't remember state of B
-  asl                                        ;*2
-  asl                                        ;*4
-  asl                                        ;*8
-  asl                                        ;*16
-  asl                                        ;*32
-  asl                                        ;*64
-  sta          BankExpansionRamKB
+                       lda          BankExpansionRam              ;number of banks
+                       clc
+                       xce
+                       rep          #$30
+                       mx           %00
+                       and          #$00FF                        ;clear artifacts? can't remember state of B
+                       asl                                        ;*2
+                       asl                                        ;*4
+                       asl                                        ;*8
+                       asl                                        ;*16
+                       asl                                        ;*32
+                       asl                                        ;*64
+                       sta          BankExpansionRamKB
 
-  lda GSROM ;now check (hardcode really) build-in ram
-  cmp #3
-  bne :notrom3
-:rom3 lda #1024
- sta BankBuiltInRamKB
- rts
-:notrom3 lda #256K
- sta BankBuiltInRamKB
-  sep          #$30
+                       lda          GSROM                         ;now check (hardcode really) build-in ram
+                       cmp          #3
+                       bne          :notrom3
+:rom3                  lda          #1024
+                       sta          BankBuiltInRamKB
+                       rts
+:notrom3               lda          #256
+                       sta          BankBuiltInRamKB
+                       sep          #$30
 
-  rts
+                       rts
 
 
 
-BankExpansionRamKB     ds 2
-BankBuiltInRamKB        ds 2
+BankExpansionRamKB     ds           2
+BankBuiltInRamKB       ds           2
 BankExpansionRam       ds           1
 BankExpansionLowest    ds           1
 BankExpansionHighest   ds           1
@@ -970,6 +892,9 @@ PrintInt
                        jsr          PRBYTE
                        rts
 
+
+
+
 MLI                    equ          $bf00
 
 Quit                   jsr          MLI                           ; first actual command, call ProDOS vector
@@ -990,3 +915,4 @@ Error                  brk          $00                           ; shouldn't be
                        put          misc
                        put          strings.s
                        put          menu.s
+

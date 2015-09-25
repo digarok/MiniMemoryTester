@@ -59,3 +59,15 @@ VTABZ	equ $FC24	; Sets the cursor vertical position (0)
 VLINE	equ $F828	; Draws a vertical line of low-resolution blocks
 
 GSROM	equ $FB59	; should be int number of rom rev on Apple IIgs
+
+
+
+* KEY EQUATES
+KEY_UPARROW = $8B
+KEY_DNARROW = $8A
+KEY_RTARROW = $95
+KEY_LTARROW = $88
+KEY_ENTER   = $8D
+KEY_ESC     = $9B
+KEY_TAB			= $89
+KEY_DEL     = $FF

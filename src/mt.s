@@ -12,6 +12,7 @@
 
 MLI	equ $bf00
 Init
+	sei	; disable interrupts
 	LDA #$A0           ;USE A BLANK SPACE TO
 	JSR $C300          ;TURN ON THE VIDEO FIRMWARE
 
@@ -43,6 +44,63 @@ Main
 :noKey	bra :menuLoop
 * LOOOOOOOOOP ^^^^^^
 
+ColorizeMenu	
+:loop	
+	lda #$07
+	jsr WaitSCB
+	lda #$c0	; green
+	sta $c022
+
+	lda #$09
+	jsr WaitSCB
+	lda #$d0	; yello
+	sta $c022
+
+	lda #$0A
+	jsr WaitSCB
+	lda #$90	; orange
+	sta $c022
+
+
+	lda #$0B
+	jsr WaitSCB
+	lda #$10	; red
+	sta $c022
+
+	lda #$0C
+	jsr WaitSCB
+	lda #$30	; purple
+	sta $c022
+
+	lda #$0D
+	jsr WaitSCB
+	lda #$60	; bblue
+	sta $c022
+
+	lda #$0E
+	jsr WaitSCB	
+	lda #$f0	; white
+	sta $c022
+	bra :loop
+	rts
+
+WaitSCB	
+	sta :val+1
+	ldx #2	; to check twice
+:waitloop	lda $c02f
+	asl
+	lda $c02e
+	rol
+:val	cmp #$00
+	bne :waitloop
+	dex
+	bne :waitloop
+	; the problem is we can get the LAST
+	; horizcnt even/odd right as it changes
+	; and start early or something?
+
+	rts
+MAXSCB db 0	
 
 DrawMenuBackground	jsr HOME
 	lda #MainMenuStrs
@@ -542,19 +600,23 @@ MainMenuDefs
 	db MenuOption_Hex	; 1=hex input
 	db 02	; memory size (bytes)
 	da EndAddr	; variable storage 
-:TestType	hex 13,0C	; x,y
+:TestSize	hex 13,0C	; x,y
+	db MenuOption_List	; 3=list input
+	db 08	; max len size (bytes), 3=option list
+	da TestSize	; params definition & storage 
+:TestType	hex 13,0D	; x,y
 	db MenuOption_List	; 3=list input
 	db 08	; max len size (bytes), 3=option list
 	da TestType	; params definition & storage 
-:TestValue	hex 13,0D	; x,y
+:TestValue	hex 13,0E	; x,y
 	db MenuOption_Hex	; 1=hex input
 	db 01	; memory size (bytes)
 	da TestValue	; variable storage 
-:TestDelay	hex 13,0E	; x,y
+:TestDelay	hex 13,0F	; x,y
 	db MenuOption_Hex	; 1=hex input
 	db 01	; memory size (bytes)
 	da TestDelay	; variable storage 
-:BeginTest	hex 0B,12	; x,y
+:BeginTest	hex 0B,14	; x,y
 	db MenuOption_Action ; 2=action
 	db MenuStr_BeginTestL ; menu string length
 	da MenuStr_BeginTest ; string storage 
@@ -577,27 +639,32 @@ _TestType_3	asc "RANDWORD",$00
 _TestType_4	asc "CHECKERS",$00
 _TestType_5	asc "BANK",$00
 
+TestSize	db 00
+	db 02
+	da _TestSize_0,_TestSize_1
+_TestSize_0	asc "BYTE",$00
+_TestSize_1	asc "WORD",$00
+
 MenuStr_JSR	da BeginTest	; MUST PRECEDE MENU STRING!  Yes, it's magicly inferred. (-2)
 MenuStr_BeginTest	asc "BEGIN TEST"
 MenuStr_BeginTestL  equ #*-MenuStr_BeginTest
 MenuStr_BeginTestE	db 00
 MainMenuStrs	
-	asc "  ____________________________________________________________________________",$8D,$00
-	asc " ",$1B,'ZGGGGGGGGGGGGGGGGGGGGGGGGGGG\'," Mini Memory Tester ",'\GGGGGGGGGGGGG\'," v0.1a ",'\GGGGG_',$18,$8D,$00
-	asc " ",$1B,'ZWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVWVW'," ReactiveMicro ",'VW_',$18,$8D,00
-	asc " ",$1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,$8D,00
-	asc " ",$1B,'Z'," ",'Z \GGG_',"Test Settings",'ZGGG\ _',"                                                ",'_',$18,$8D,00
-	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
+	asc " ______________________________________________________________________________",$8D,$00
+	asc $1B,'ZG', " ",'@'," ",'GGGGGGGGGGGGGGGGGG\'," Mini Memory Tester v0.2 ",'\GGGGGGGGGGG\'," UltimateMicro ",'\G_',$18,$00
+	asc $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,00
+	asc $1B,'Z',"",'Z \GGG_',"Test Settings",'ZGGG\ _',"                                                   ",'_',$18,00
+	asc $1B,'Z'," ",'Z',"                         ",'_',"                                                  ",'_',$18,$8D,00
 	asc " ",$1B,'Z'," ",'Z',"  Start BANK:            ",'_',"                                                ",'_',$18,$8D,00
 	asc " ",$1B,'Z'," ",'Z',"    End BANK:            ",'_',"                                                ",'_',$18,$8D,00
 	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
 	asc " ",$1B,'Z'," ",'Z',"  Start ADDR:            ",'_',"                                                ",'_',$18,$8D,00
 	asc " ",$1B,'Z'," ",'Z',"    End ADDR:            ",'_',"                                                ",'_',$18,$8D,00
 	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
+	asc " ",$1B,'Z'," ",'Z',"   Test Size:            ",'_',"                                                ",'_',$18,$8D,00
 	asc " ",$1B,'Z'," ",'Z',"   Test Type:            ",'_',"                                                ",'_',$18,$8D,00
 	asc " ",$1B,'Z'," ",'Z',"   Test Byte:            ",'_',"                                                ",'_',$18,$8D,00
 	asc " ",$1B,'Z'," ",'Z',"  Test Delay:            ",'_',"                                                ",'_',$18,$8D,00
-	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
 	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
 	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
 	asc " ",$1B,'Z'," ",'Z',"                         ",'_',"                                                ",'_',$18,$8D,00
@@ -615,7 +682,9 @@ MainMenuStrs
 
 
 WaitKey
-:kloop	lda KEY
+:kloop	
+	;jsr ColorizeMenu
+	lda KEY
 	bpl :kloop
 	sta STROBE
 	cmp #"b"	; REMOVE DEBUG
