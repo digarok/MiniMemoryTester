@@ -1,0 +1,9 @@
+#!/bin/bash
+./make_bootable
+
+if [ $? -ne 0 ]; then
+  echo "Build failed, methinks."
+  exit 1
+fi
+
+./gsport
