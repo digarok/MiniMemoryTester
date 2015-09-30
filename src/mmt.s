@@ -167,13 +167,22 @@ TestMasterLoop         clc
 
                        jsr          TestPrintState
                        jsr          TestGetStartAddress
-:TestLoop
+
+
+
+:TestLoop                                 ;THIS IS IT! 
                        jsr          TestMemoryLocation
                        jsr          TestUpdateStatus
 
 
                        jsr          TestAdvanceLocation
                        bcc          :TestLoop
+
+
+
+
+
+
                        bcs          :NextBank
 
 :NextIteration         inc          _testIteration                ;see if we've done enough tests
