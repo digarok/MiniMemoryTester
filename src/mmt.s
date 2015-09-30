@@ -170,20 +170,17 @@ TestMasterLoop         clc
 
 
 
-:TestLoop                                 ;THIS IS IT! 
+:TestLoop                                                         ;THIS IS IT!
+                       lda          $C000
+                       bmi          TestKeyHandler
+KeyHandled
                        jsr          TestMemoryLocation
                        jsr          TestUpdateStatus
-
-
                        jsr          TestAdvanceLocation
                        bcc          :TestLoop
-
-
-
-
-
-
                        bcs          :NextBank
+
+
 
 :NextIteration         inc          _testIteration                ;see if we've done enough tests
                        lda          TestIterations
@@ -191,13 +188,19 @@ TestMasterLoop         clc
                        cmp          _testIteration
                        bcc          :testComplete
 :infiniteIterations    jmp          TestMasterLoop
-
+TestAbort
 :testComplete          sep          #$10
                        jsr          LogTestDone
                        rts
 Mesg_Done              asc          "DONE WITH TEST",$8D,00
 
 
+TestKeyHandler         sta          $C010
+                       cmp          #"Q"
+                       beq          TestAbort
+                       cmp          #"q"
+                       beq          TestAbort
+                       jmp          KeyHandled
 
 
 
@@ -266,8 +269,8 @@ TestPrintErrors        PushAll
                        rts
 
 TestForceUpdateStatus  PushAll
-                       stx _stash
-                       bra :print
+                       stx          _stash
+                       bra          :print
 TestUpdateStatus       PushAll
                        stx          _stash                        ; save real X
                        lda          _stash                        ;get low byte
@@ -1112,3 +1115,4 @@ BankExpansionHighest   ds           1
 BankMap                ds           256                           ;page-align maps just to make them easier to see
 _stash                 ds           256
                        ds           \
+
