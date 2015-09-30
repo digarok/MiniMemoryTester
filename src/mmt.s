@@ -200,6 +200,13 @@ TestKeyHandler         sta          $C010
                        beq          TestAbort
                        cmp          #"q"
                        beq          TestAbort
+                       cmp          #"p"
+                       beq          :pause
+                       jmp          KeyHandled
+:pause
+:nokey                 lda          $C000
+                       bpl          :nokey
+                       sta          $C010
                        jmp          KeyHandled
 
 
