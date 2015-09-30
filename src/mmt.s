@@ -196,8 +196,7 @@ Mesg_Done              asc          "DONE WITH TEST",$8D,00
 
 
 TestKeyHandler         sta          $C010
-                       cmp          #"Q"
-                       beq          TestAbort
+                       jsr          ToLower
                        cmp          #"q"
                        beq          TestAbort
                        cmp          #"p"
@@ -1122,4 +1121,5 @@ BankExpansionHighest   ds           1
 BankMap                ds           256                           ;page-align maps just to make them easier to see
 _stash                 ds           256
                        ds           \
+
 
