@@ -84,7 +84,7 @@ DrawMenuBackground     jsr          HOME
 
 * Prints "Apple IIgs ROM 0x"
 DrawRomMessage
-                       PRINTXY      #55;#05;Mesg_Rom
+                       PRINTXY      #54;#05;Mesg_Rom
                        lda          GSROM
                        jsr          PRBYTE
                        rts
@@ -95,10 +95,10 @@ DrawRamMessages
                        lda          GSROM
                        cmp          #3
                        bne          :rom0or1
-:rom3                  PRINTXY      #55;#06;Mesg_InternalRam1024
+:rom3                  PRINTXY      #54;#06;Mesg_InternalRam1024
                        bra          :drawExpansionMessage
-:rom0or1               PRINTXY      #55;#06;Mesg_InternalRam256
-:drawExpansionMessage  PRINTXY      #55;#07;Mesg_ExpansionRam
+:rom0or1               PRINTXY      #54;#06;Mesg_InternalRam256
+:drawExpansionMessage  PRINTXY      #54;#07;Mesg_ExpansionRam
                        ldx          #BankExpansionRamKB
                        ldy          #>BankExpansionRamKB
                        jsr          PrintInt
@@ -142,7 +142,9 @@ LogTestDone            jsr          WinConsole
 *       #    ######  ####    #   ###### #    #    ###    ###    ###
 *
 *
-TestInit               jsr          WinConsole
+TestInit
+                       PRINTXY      #$34;#$E;_clearstring
+                       jsr          WinConsole
                        LOG          Mesg_Starting
                        jsr          WinFull
                        sei                                        ; disable interrupts
@@ -254,7 +256,9 @@ TestPrintErrors        PushAll
                        PopAll
                        rts
 
-
+TestForceUpdateStatus  PushAll
+                       stx _stash
+                       bra :print
 TestUpdateStatus       PushAll
                        stx          _stash                        ; save real X
                        lda          _stash                        ;get low byte
@@ -847,7 +851,7 @@ _binpatternsize        db           02                            ; max len size
                        db           Menu_TypeInt                  ; 1=hex input
                        db           03                            ; display/entry width. ints are 16-bit internally
                        da           TestRefreshPause              ; variable storage
-:BeginTest             hex          1C,0F                         ; x,y
+:BeginTest             hex          3A,0E                         ; x,y
                        db           Menu_TypeAction               ; 2=action
                        db           MenuStr_BeginTestL            ; menu string length
                        da           MenuStr_BeginTest             ; string storage
@@ -871,7 +875,7 @@ MenuSetBits            sta          _hexpatternsize
                        sta          _binpatternsize
 
 :checkTwoPass          lda          TestTwoPass                   ;now check TwoPass/AdjacentWrite conflict
-                       cmp          _lastTwoPass                  ;i wish this was simpler code 
+                       cmp          _lastTwoPass                  ;i wish this was simpler code
                        beq          :checkAdjacentWrite           ;some computer science dude could probably help me out here
                        sta          _lastTwoPass
                        stz          TestAdjacentWrite
@@ -908,8 +912,8 @@ MainMenuStrs
                        asc          $1B,'ZZ',"  Direction            Wait on Error          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                        asc          $1B,'ZZ',"  Adjacent Wr.         Two-Pass R/W           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                        asc          $1B,'ZZ',"  Read Repeat          Write Repeat           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
-                       asc          $1B,'ZZ',"  Iterations           Refresh Pause          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
-                       asc          $1B,'ZZ',"                        (              )      ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                       asc          $1B,'ZZ',"  Iterations           Refresh Pause          ",'_'," ",'Z',"     ([ BEGIN TEST ])     ",'_'," ",'_',$18,00
+                       asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                        asc          $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,00
                        asc          $1B,'Z',"                                                                              ",'_',$18,00
                        asc          $1B,'Z',"                                                                              ",'_',$18,00
