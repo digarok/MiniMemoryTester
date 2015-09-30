@@ -10,7 +10,7 @@
                        dsk          mtsystem                      ; tell compiler what name for output file
                        put          applerom
 
-Init                   sei                                        ; disable interrupts
+Init
                        clc
                        xce                                        ;enable full 65816
                        LDA          #$A0                          ;USE A BLANK SPACE TO
@@ -40,7 +40,7 @@ Main
                        jsr          LogWelcomeMessage
                        jsr          LogRamMessages
 
-:menuDrawOptionsLoop   jsr          MenuUpdateWordSize            ;always update this before draw in case of change
+:menuDrawOptionsLoop   jsr          MenuUpdateConfig              ;always update this before draw in case of change
                        lda          #MainMenuDefs
                        ldy          #>MainMenuDefs
                        jsr          Menu_DrawOptions
@@ -84,7 +84,7 @@ DrawMenuBackground     jsr          HOME
 
 * Prints "Apple IIgs ROM 0x"
 DrawRomMessage
-                       PRINTXY      #55;#06;Mesg_Rom
+                       PRINTXY      #55;#05;Mesg_Rom
                        lda          GSROM
                        jsr          PRBYTE
                        rts
@@ -95,10 +95,10 @@ DrawRamMessages
                        lda          GSROM
                        cmp          #3
                        bne          :rom0or1
-:rom3                  PRINTXY      #55;#07;Mesg_InternalRam1024
+:rom3                  PRINTXY      #55;#06;Mesg_InternalRam1024
                        bra          :drawExpansionMessage
-:rom0or1               PRINTXY      #55;#07;Mesg_InternalRam256
-:drawExpansionMessage  PRINTXY      #55;#08;Mesg_ExpansionRam
+:rom0or1               PRINTXY      #55;#06;Mesg_InternalRam256
+:drawExpansionMessage  PRINTXY      #55;#07;Mesg_ExpansionRam
                        ldx          #BankExpansionRamKB
                        ldy          #>BankExpansionRamKB
                        jsr          PrintInt
@@ -123,7 +123,10 @@ LogRamMessages         jsr          WinConsole
                        jsr          PRBYTE
                        jsr          WinFull
                        rts
-
+LogTestDone            jsr          WinConsole
+                       LOG          Mesg_Done
+                       jsr          WinFull
+                       rts
 
 
 
@@ -139,22 +142,175 @@ LogRamMessages         jsr          WinConsole
 *       #    ######  ####    #   ###### #    #    ###    ###    ###
 *
 *
-TestInit               LOG          Mesg_Starting
-                       stz          _errorCounter
+TestInit               jsr          WinConsole
+                       LOG          Mesg_Starting
+                       jsr          WinFull
+                       sei                                        ; disable interrupts
+                       stz          _testErrors
                        stz          _testIteration
                        stz          _testIteration+1
+                       stz          _testState
+
+
+TestMasterLoop         clc
+                       xce
+                       rep          #$10                          ;long x/y
                        stz          CurBank
-
-
-
-TestMasterLoop
+                       jsr          TestPrintIteration
+                       jsr          TestPrintErrors               ;just to get it drawn
+:NextBank              jsr          TestSetState                  ;sets read/write/both
                        jsr          TestGetNextBank               ;sets initial bank when CurBank = 0
                        jsr          TestPastFinalBank
                        bcs          :NextIteration
 
+                       jsr          TestPrintState
+                       jsr          TestGetStartAddress
+:TestLoop
+                       jsr          TestMemoryLocation
+                       jsr          TestUpdateStatus
 
-:NextIteration         inc          _testIteration
 
+                       jsr          TestAdvanceLocation
+                       bcc          :TestLoop
+                       bcs          :NextBank
+
+:NextIteration         inc          _testIteration                ;see if we've done enough tests
+                       lda          TestIterations
+                       beq          :infiniteIterations           ;0=infinite
+                       cmp          _testIteration
+                       bcc          :testComplete
+:infiniteIterations    jmp          TestMasterLoop
+
+:testComplete          sep          #$10
+                       jsr          LogTestDone
+                       rts
+Mesg_Done              asc          "DONE WITH TEST",$8D,00
+
+
+
+
+
+
+
+                       mx           %10
+TestSetState           lda          TestTwoPass                   ;read pass then write pass?
+                       bne          :twopass
+                       lda          #TESTSTATE_BOTH               ;r&w
+                       sta          _testState
+                       rts
+:twopass               lda          _testState
+                       beq          :setWrite                     ;0 check for initial value
+                       cmp          #TESTSTATE_READ
+                       beq          :setWrite
+                       lda          #TESTSTATE_READ
+                       sta          _testState
+                       rts
+:setWrite              lda          #TESTSTATE_WRITE              ;otherwise, start with write pass
+                       sta          _testState
+                       rts
+
+
+TestPrintState         PushAll
+                       sep          #$10
+                       lda          _testState
+:check1                cmp          #1
+                       bne          :check2
+                       PRINTXY      #53;#12;Mesg_Writing
+                       bra          :done
+:check2                cmp          #2
+                       bne          :check3
+                       PRINTXY      #53;#12;Mesg_Reading
+                       bra          :done
+:check3                cmp          #3
+                       bne          :done
+                       PRINTXY      #53;#12;Mesg_RW
+:done                  clc
+                       xce
+                       rep          #$10
+                       PopAll
+                       rts
+
+TestPrintIteration     PushAll
+                       sep          #$10
+                       PRINTXY      #53;#10;Mesg_TestPass
+                       ldx          #_testIteration
+                       ldy          #>_testIteration
+                       jsr          PrintInt
+                       clc
+                       xce
+                       rep          #$10
+                       PopAll
+                       rts
+
+TestPrintErrors        PushAll
+                       sep          #$10
+                       PRINTXY      #53;#11;Mesg_Errors
+                       ldx          #_testErrors
+                       ldy          #>_testErrors
+                       jsr          PrintInt
+                       clc
+                       xce
+                       rep          #$10
+                       PopAll
+                       rts
+
+
+TestUpdateStatus       PushAll
+                       stx          _stash                        ; save real X
+                       lda          _stash                        ;get low byte
+                       bne          :noprint
+:print                 sep          #$10                          ;in case?  there was a sec xce combo here
+                       GOXY         #66;#12
+                       lda          CurBank
+                       jsr          PRBYTE
+                       lda          #"/"
+                       jsr          COUT
+                       lda          _stash+1
+                       ldx          _stash
+                       jsr          PRNTAX
+                       clc
+                       xce
+                       rep          #$10
+:noprint               PopAll
+                       rts
+
+
+
+TestMemoryLocation     rts
+TestAdvanceLocation    lda          TestDirection
+                       bne          :dn
+:up                    lda          TestSize16Bit
+                       beq          :up8
+:up16                  inx
+                       beq          :hitBankBoundry
+:up8                   inx
+                       beq          :hitBankBoundry               ;rollover
+                       cpx          EndAddr                       ;sets carry if we are past/done
+                       bcs          :done
+                       rts
+:dn                    lda          TestSize16Bit
+                       beq          :dn8
+:dn16                  cpx          #0
+                       beq          :hitBankBoundry
+                       dex
+:dn8                   cpx          #0
+                       beq          :hitBankBoundry
+                       dex
+                       cpx          StartAddr
+                       bcc          :done
+                       clc
+                       rts
+:done
+:hitBankBoundry        sec
+                       rts
+
+
+TestGetStartAddress    lda          TestDirection
+                       bne          :dn
+:up                    ldx          StartAddr
+                       rts
+:dn                    ldx          EndAddr
+:addressSet            rts
 
 TestPastFinalBank      lda          TestDirection
                        bne          :descending
@@ -172,7 +328,15 @@ TestPastFinalBank      lda          TestDirection
 :no                    clc
                        rts
 
-TestGetNextBank        lda          TestDirection
+
+TestGetNextBank        lda          TestTwoPass                   ;see if we are doing two-passes of the bank
+                       beq          :notTwoPass                   ;nope, no additional logic needed
+                       lda          _testState
+                       cmp          #TESTSTATE_READ               ;don't change bank on read pass of two-pass
+                       bne          :twoPassNextBank
+                       rts
+:twoPassNextBank
+:notTwoPass            lda          TestDirection
                        bne          :descending
 :ascending             lda          CurBank
                        bne          :notInitialBank
@@ -190,8 +354,7 @@ TestGetNextBank        lda          TestDirection
                        rts
 
 
-
-
+                       mx           %11
 
 
 
@@ -217,7 +380,7 @@ TestGetNextBank        lda          TestDirection
 *
 
 BeginTest              LOG          Mesg_Starting
-                       stz          _errorCounter
+                       stz          _testErrors
                        stz          _testIteration
                        stz          _testIteration+1
 
@@ -324,29 +487,29 @@ BeginTestPass
                        rts
 
 _testIteration         ds           8
-_errorCounter          ds           8
+_testErrors            ds           8
+_testState             ds           2                             ;1=read 2=write 3=both (read & write)
+TESTSTATE_READ         =            1
+TESTSTATE_WRITE        =            2
+TESTSTATE_BOTH         =            3
 UpdateScanInterval     equ          #$1000
 
 Mesg_Welcome           asc          "Welcome to Mini Memory Tester v0.3 by Dagen Brock",$8D,00
 Mesg_InternalRam256    asc          "Built-In RAM  256K",00
 Mesg_InternalRam1024   asc          "Built-In RAM  1024K",00
 Mesg_ExpansionRam      asc          "Expansion RAM ",00
-
 Mesg_Rom               asc          "Apple IIgs ROM ",00
 Mesg_UserManual        asc          "USE ARROW KEYS TO MOVE  -  USE ENTER TO SELECT/EDIT",00
 Mesg_Starting          asc          $8D,"Starting Test",$8D,"Press P to pause, ESC to stop.",$8D,$8D,00
-Mesg_Waiting           asc          "Waiting: ",00
-Mesg_Writing           asc          "Writing: ",00
-Mesg_Reading           asc          "Reading: ",00
-Mesg_Errors            asc          " Errors:  ",$00
-Mesg_TestPass          asc          "   Pass:  ",00
+Mesg_Waiting           asc          "   Waiting: ",00
+Mesg_Writing           asc          "   Writing: ",00
+Mesg_Reading           asc          "   Reading: ",00
+Mesg_RW                asc          "Read&Write: ",00
+Mesg_Errors            asc          "    Errors:  ",$00
+Mesg_TestPass          asc          " Test Pass:  ",00
 Mesg_Blank             asc          "                 ",00
 Mesg_DetectedBanks     asc          "Setting default start/end banks to detected memory expansion: $",00
 Mesg_ToBank            asc          " to $",00
-
-Mesg_ConsoleTop        asc          $1B,'ZLLLLLLLLLLLLLLL',$18,' Console Log ',$1B,'LLLLLLLLLLLLLLLLL_',$18,$8D,00
-Mesg_ConsoleMid        asc          $1B,'Z',"                                             ",'_',$18,$8D,00
-Mesg_ConsoleBot        asc          $1B,'Z',"_____________________________________________",'_',$18,$8D,00
 
 * Error message strings
 Mesg_E1                asc          "Bad Read - Pass ",00
@@ -360,12 +523,12 @@ Mesg_Arrow             asc          $1B,'SU',$18,00
 PrintTestError
 
                        sep          $30
-                       inc          _errorCounter
+                       inc          _testErrors
                        bne          :noRoll
-                       inc          _errorCounter+1
+                       inc          _testErrors+1
 :noRoll                PRINTXY      #55;#11;Mesg_Errors
-                       ldx          _errorCounter
-                       lda          _errorCounter+1
+                       ldx          _testErrors
+                       lda          _testErrors+1
                        jsr          PRNTAX
                        jsr          WinConsole
                        LOG          Mesg_E1
@@ -586,10 +749,11 @@ TestSize16Bit          db           01                            ;0=no ... 8bit
 _TestSize_0            asc          " 8-bit",$00
 _TestSize_1            asc          "16-bit",$00
 
-MenuStr_JSR            da           BeginTest                     ; MUST PRECEDE MENU STRING!  Yes, it's magicly inferred. (-2)
+MenuStr_BeginTestJSR   da           TestInit                      ; MUST PRECEDE MENU STRING!  Yes, it's magicly inferred. (-2)
 MenuStr_BeginTest      asc          " BEGIN TEST "
 MenuStr_BeginTestL     equ          #*-MenuStr_BeginTest
 MenuStr_BeginTestE     db           00
+
 StartBank              db           #$06
 EndBank                db           #$1F
 CurBank                db           #0
@@ -654,18 +818,19 @@ _binpatternsize        db           02                            ; max len size
                        db           Menu_TypeList
                        db           2
                        da           TestDirectionTbl
-:TwoPass               hex          28,0B
-                       db           Menu_TypeBool
+:TestErrorPause        hex          28,0B                         ; x,y
+                       db           Menu_TypeBool                 ; 1=hex input
                        db           2                             ; could be 8-bit or 16-bit bool
-                       da           TestTwoPass
+                       da           TestErrorPause                ; variable storage
 :AdjacentWrite         hex          12,0C                         ; x,y
                        db           Menu_TypeBool                 ; 1=hex input
                        db           01                            ; memory size (bytes)
                        da           TestAdjacentWrite             ; variable storage
-:TestErrorPause        hex          28,0C                         ; x,y
-                       db           Menu_TypeBool                 ; 1=hex input
+:TwoPass               hex          28,0C
+                       db           Menu_TypeBool
                        db           2                             ; could be 8-bit or 16-bit bool
-                       da           TestErrorPause                ; variable storage
+                       da           TestTwoPass
+
 :ReadRepeat            hex          12,0D                         ; x,y
                        db           Menu_TypeInt                  ; 1=hex input
                        db           03                            ; display/entry width. ints are 16-bit internally
@@ -693,7 +858,8 @@ Menu_ItemSelected      db           0
 
 * special helper functions to update some input sizes when
 * the user switches between 8 and 16 bit testing modes
-MenuUpdateWordSize     lda          TestSize16Bit
+* ... also disable AdjacentWrite if TwoPass
+MenuUpdateConfig       lda          TestSize16Bit
                        bne          :is16bit
 :is8bit                jmp          MenuSet8Bit
 :is16bit               jmp          MenuSet16Bit
@@ -703,9 +869,25 @@ MenuSet8Bit            jsr          MenuClearPatterns             ;clear leftove
                        lda          #1
 MenuSetBits            sta          _hexpatternsize
                        sta          _binpatternsize
-                       rts
-* hack to allow for smaller portion of screen to update
 
+:checkTwoPass          lda          TestTwoPass                   ;now check TwoPass/AdjacentWrite conflict
+                       cmp          _lastTwoPass                  ;i wish this was simpler code 
+                       beq          :checkAdjacentWrite           ;some computer science dude could probably help me out here
+                       sta          _lastTwoPass
+                       stz          TestAdjacentWrite
+                       stz          _lastAdjacentWrite
+                       bra          :done
+:checkAdjacentWrite    lda          TestAdjacentWrite
+                       cmp          _lastAdjacentWrite
+                       beq          :done
+                       sta          _lastAdjacentWrite
+                       stz          TestTwoPass
+                       stz          _lastTwoPass
+:done                  rts
+_lastTwoPass           db           0
+_lastAdjacentWrite     db           0
+
+* hack to allow for smaller portion of screen to update
 MenuClearPatterns      PRINTXY      #$17;#$8;_clearstring
                        PRINTXY      #$17;#$9;_clearstring
                        rts
@@ -723,8 +905,8 @@ MainMenuStrs
                        asc          $1B,'ZZ',"       Hex Pattern  :                         ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                        asc          $1B,'ZZ',"       Bin Pattern  :                         ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                        asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
-                       asc          $1B,'ZZ',"  Direction            Two-Pass R/W           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
-                       asc          $1B,'ZZ',"  Adjacent Wr.         Wait on Error          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                       asc          $1B,'ZZ',"  Direction            Wait on Error          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                       asc          $1B,'ZZ',"  Adjacent Wr.         Two-Pass R/W           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                        asc          $1B,'ZZ',"  Read Repeat          Write Repeat           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                        asc          $1B,'ZZ',"  Iterations           Refresh Pause          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                        asc          $1B,'ZZ',"                        (              )      ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
@@ -741,10 +923,7 @@ MainMenuStrs
 
 
 
-BorderColor            db           0
-                       ds           \
-_stash                 ds           255
-                       ds           \
+
 
 * Creates a 256 byte map of each bank, "BankRam"
 * The map shows whether it's Built-in RAM, ROM, Expansion RAM, etc.
@@ -859,21 +1038,6 @@ DetectRam
 
 
 
-BankExpansionRamKB     ds           2
-BankBuiltInRamKB       ds           2
-BankExpansionRam       ds           1
-BankExpansionLowest    ds           1
-BankExpansionHighest   ds           1
-                       ds           \
-BankMap                ds           256                           ;
-BankROMUsed            =            1
-BankROMReserved        =            2
-BankRAMSlowBuiltIn     =            3
-BankRAMFastBuiltIn     =            4
-BankRAMFastExpansion   =            5
-BankNoRAM              =            0
-
-
 * Takes address in X/Y and prints out Int stored there
 PrintInt
                        stx          :loc+1
@@ -895,8 +1059,6 @@ PrintInt
 
 
 
-MLI                    equ          $bf00
-
 Quit                   jsr          MLI                           ; first actual command, call ProDOS vector
                        dfb          $65                           ; with "quit" request ($65)
                        da           QuitParm
@@ -909,10 +1071,31 @@ QuitParm               dfb          4                             ; number of pa
                        dfb          0                             ; not used
                        da           $0000                         ; not used
 
-
 Error                  brk          $00                           ; shouldn't be here either
 
                        put          misc
                        put          strings.s
                        put          menu.s
 
+
+                                                                  ;
+BankROMUsed            =            1
+BankROMReserved        =            2
+BankRAMSlowBuiltIn     =            3
+BankRAMFastBuiltIn     =            4
+BankRAMFastExpansion   =            5
+BankNoRAM              =            0
+
+
+
+BorderColor            db           0
+
+BankExpansionRamKB     ds           2
+BankBuiltInRamKB       ds           2
+BankExpansionRam       ds           1
+BankExpansionLowest    ds           1
+BankExpansionHighest   ds           1
+                       ds           \
+BankMap                ds           256                           ;page-align maps just to make them easier to see
+_stash                 ds           256
+                       ds           \
