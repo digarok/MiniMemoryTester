@@ -414,10 +414,86 @@ TestMemoryLocation
                            bne          :test16
 :test8                     lda          TestType
                            cmp          #TT_BITPATTERN
+                           bne          :checkrand
+                           jmp          Test_8BitPatternRW
+:checkrand                 cmp          #TT_RANDOM
+                           bne          :checkwalk0
+                           jmp          Test_8RandomRW
+:checkwalk0                cmp          #TT_BITWALK0
+                           bne          :checkwalk1
+                           jmp          Test_BitWalk0RW
+:checkwalk1                cmp          #TT_BITWALK1
                            bne          :UNHANDLED
+                           jmp          Test_BitWalk1RW
 
+:test16
+:UNHANDLED
+                           rts
+
+
+Test_BitWalk1RW            rts
+TestMemoryLocationTwoPass  rts
+Test_BitWalk0RW
+                           lda          #%01111111
+                           sta          HexPattern
+                           jsr          Test_8BitPatternRW
+                           lda          #%10111111
+                           sta          HexPattern
+                           jsr          Test_8BitPatternRW
+                           lda          #%11011111
+                           sta          HexPattern
+                           jsr          Test_8BitPatternRW
+                           lda          #%11101111
+                           sta          HexPattern
+                           jsr          Test_8BitPatternRW
+                           lda          #%11110111
+                           sta          HexPattern
+                           jsr          Test_8BitPatternRW
+                           lda          #%11111011
+                           sta          HexPattern
+                           jsr          Test_8BitPatternRW
+                           lda          #%11111101
+                           sta          HexPattern
+                           jsr          Test_8BitPatternRW
+                           lda          #%11111110
+                           sta          HexPattern
+                           jmp          Test_8BitPatternRW
+
+Test_BitWalk1RW
+                           lda          #%10000000
+                           sta          HexPattern
+                           jsr          Test_8BitPatternRW
+                           lda          #%01000000
+                           sta          HexPattern
+                           jsr          Test_8BitPatternRW
+                           lda          #%00100000
+                           sta          HexPattern
+                           jsr          Test_8BitPatternRW
+                           lda          #%00010000
+                           sta          HexPattern
+                           jsr          Test_8BitPatternRW
+                           lda          #%00001000
+                           sta          HexPattern
+                           jsr          Test_8BitPatternRW
+                           lda          #%00000100
+                           sta          HexPattern
+                           jsr          Test_8BitPatternRW
+                           lda          #%00000010
+                           sta          HexPattern
+                           jsr          Test_8BitPatternRW
+                           lda          #%00000001
+                           sta          HexPattern
+                           jmp          Test_8BitPatternRW
+
+Test_8RandomRW
+                           jsr          GetRandByte
+                           sta          HexPattern
+                           jmp          Test_8BitPatternRW
+
+
+Test_8BitPatternRW
                            ldy          TestWriteRepeat
-:test8bitpattern           lda          HexPattern
+:writeloop                 lda          HexPattern
                            stal         $020000,x
 BANKPATCH01                =            *-1
                            lda          TestAdjacentWrite
@@ -427,35 +503,24 @@ BANKPATCH02                =            *-1
                            stal         $020001,x                     ;+1
 BANKPATCH03                =            *-1
 
-:noAdjacentWrite
-                           dey
-                           bne          :test8bitpattern
 
-                           lda          $C000
-                           bpl          _nokey
-                           sta          $C010
-                           cmp          #"c"
-                           bne          _nokey
-                           lda          #$55
-                           stal         $020000,x
-BANKPATCHXX                =            *-1
-_nokey                     nop
+:noAdjacentWrite           dey
+                           bne          :writeloop
 
+                           jsr          CORRUPTOR
 
                            ldy          TestReadRepeat
-:test8bitpatternrdlp       ldal         $020000,x
+:readloop                  ldal         $020000,x
 BANKPATCH04                =            *-1
                            cmp          HexPattern
                            bne          :READERR8BP
                            dey
-                           bne          :test8bitpatternrdlp
+                           bne          :readloop
                            rts
 :READERR8BP                jsr          TestLogError
-:test16
-:UNHANDLED
                            rts
 
-TestMemoryLocationTwoPass  rts
+
 
 
 
@@ -541,6 +606,19 @@ TestPatchBanks             lda          CurBank
                            sta          BANKPATCH03
                            sta          BANKPATCH04
                            sta          BANKPATCHXX
+                           rts
+
+CORRUPTOR
+
+                           lda          $C000
+                           bpl          _nokey
+                           sta          $C010
+                           cmp          #"c"
+                           bne          _nokey
+                           lda          #$55
+                           stal         $020000,x
+BANKPATCHXX                =            *-1
+_nokey                     nop
                            rts
                            mx           %11
 
@@ -887,6 +965,32 @@ PrintTimerVal
                            jsr          PRBYTE
                            rts
 
+* possible EOR values
+*$1d (29)
+*$2b (43)
+*$2d (45)
+*$4d (77)
+*$5f (95)
+*$63 (99)
+*$65 (101)
+*$69 (105)
+*$71 (113)
+*$87 (135)
+*$8d (141)
+*$a9 (169)
+*$c3 (195)
+*$cf (207)
+*$e7 (231)
+*$f5 (245)
+GetRandByte                                                           ; USE ONLY WITH CORRUPTOR
+                           lda          _seed
+                           beq          :doEor
+                           asl
+                           bcc          :noEor
+:doEor                     eor          #$2b
+:noEor                     sta          _seed
+                           rts
+_seed                      db           0
 GetRandTrash                                                          ; USE ONLY WITH CORRUPTOR
                            lda          _randomTrashByte
                            beq          :doEor
@@ -934,7 +1038,7 @@ TestType_BitWalk0          asc          " bit walk 0",$00
 TestType_Random            asc          "  random   ",$00
 TT_BITPATTERN              =            0
 TT_BITWALK1                =            1
-TT_BITWALK2                =            2
+TT_BITWALK0                =            2
 TT_RANDOM                  =            3
 
 TestDirectionTbl
