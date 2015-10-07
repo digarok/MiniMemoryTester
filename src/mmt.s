@@ -200,6 +200,8 @@ TestKeyHandler             sta          $C010
                            jsr          ToLower
                            cmp          #"q"
                            beq          TestAbort
+                           cmp          #KEY_ESC
+                           beq          TestAbort
                            cmp          #"p"
                            beq          :pause
                            jmp          KeyHandled
@@ -279,7 +281,7 @@ TestLogError               PushAll
                            php
                            sta          _stash+12                     ;8 or 16 bit? YES!
                            sty          _stash+10                     ;ReadRepeat
-                           stx          _stash+2  ;address - legacy
+                           stx          _stash+2                      ;address - legacy
                            rep          #$30                          ;need longA
                            lda          TestReadRepeat
                            inc                                        ;n++
@@ -437,7 +439,7 @@ BANKPATCH03                =            *-1
                            lda          #$55
                            stal         $020000,x
 BANKPATCHXX                =            *-1
-_nokey  nop
+_nokey                     nop
 
 
                            ldy          TestReadRepeat
@@ -935,7 +937,8 @@ TT_BITWALK1                =            1
 TT_BITWALK2                =            2
 TT_RANDOM                  =            3
 
-TestDirectionTbl           db           0
+TestDirectionTbl
+TestDirection              db           0
                            db           2
                            da           _testDirectionUp,_testDirectionDown,00,00
 _testDirectionUp           asc          "up",$00
@@ -960,7 +963,6 @@ StartAddr                  dw           #$0000
 EndAddr                    dw           #$FFFF
 HexPattern                 dw           #$0000
 
-TestDirection              dw           #0                            ; list
 TestTwoPass                dw           #0                            ; bool is byte, but might change in future? :P
 TestAdjacentWrite          dw           #0                            ; bool is byte, but might change in future? :P
 TestRefreshPause           dw           #$00                          ; int
@@ -1298,3 +1300,4 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
+
