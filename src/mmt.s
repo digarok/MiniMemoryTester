@@ -276,6 +276,23 @@ TestPrintErrors            PushAll
                            rep          #$10
                            PopAll
                            rts
+TestPauseError             lda TestErrorPause
+                           beq :no
+                           PushAll
+                           sep #$10
+                           PRINTXY      #55;#14;Mesg_TestError1
+                           PRINTXY      #55;#15;Mesg_TestError2
+
+:nokey                           lda $C000
+                           bpl :nokey
+                           sta $C010
+                           PRINTXY      #55;#14;Mesg_Blank
+                           PRINTXY      #55;#15;Mesg_Blank
+                           clc
+                           xce
+                           rep #$10
+                           PopAll
+:no                           rts
 
 TestLogError               PushAll
                            php
@@ -421,19 +438,17 @@ TestMemoryLocation
                            jmp          Test_8RandomRW
 :checkwalk0                cmp          #TT_BITWALK0
                            bne          :checkwalk1
-                           jmp          Test_BitWalk0RW
+                           jmp          Test_8BitWalk0RW
 :checkwalk1                cmp          #TT_BITWALK1
                            bne          :UNHANDLED
-                           jmp          Test_BitWalk1RW
+                           jmp          Test_8BitWalk1RW
 
 :test16
 :UNHANDLED
                            rts
 
-
-Test_BitWalk1RW            rts
 TestMemoryLocationTwoPass  rts
-Test_BitWalk0RW
+Test_8BitWalk0RW
                            lda          #%01111111
                            sta          HexPattern
                            jsr          Test_8BitPatternRW
@@ -459,7 +474,7 @@ Test_BitWalk0RW
                            sta          HexPattern
                            jmp          Test_8BitPatternRW
 
-Test_BitWalk1RW
+Test_8BitWalk1RW
                            lda          #%10000000
                            sta          HexPattern
                            jsr          Test_8BitPatternRW
@@ -498,11 +513,10 @@ Test_8BitPatternRW
 BANKPATCH01                =            *-1
                            lda          TestAdjacentWrite
                            beq          :noAdjacentWrite
-                           stal         $02FFFF,x                     ;-1
+:adjacentWrite             stal         $02FFFF,x                     ;-1
 BANKPATCH02                =            *-1
                            stal         $020001,x                     ;+1
 BANKPATCH03                =            *-1
-
 
 :noAdjacentWrite           dey
                            bne          :writeloop
@@ -518,6 +532,7 @@ BANKPATCH04                =            *-1
                            bne          :readloop
                            rts
 :READERR8BP                jsr          TestLogError
+                           jsr TestPauseError
                            rts
 
 
@@ -600,6 +615,7 @@ TestGetNextBank            lda          TestTwoPass                   ;see if we
 :notInitialBank2           dec          CurBank
                            rts
 
+
 TestPatchBanks             lda          CurBank
                            sta          BANKPATCH01
                            sta          BANKPATCH02
@@ -608,9 +624,8 @@ TestPatchBanks             lda          CurBank
                            sta          BANKPATCHXX
                            rts
 
-CORRUPTOR
 
-                           lda          $C000
+CORRUPTOR                   lda          $C000
                            bpl          _nokey
                            sta          $C010
                            cmp          #"c"
@@ -628,129 +643,6 @@ _nokey                     nop
 
 
 
-
-
-
-
-
-*
-*
-*     #####
-*    #     # #      #####
-*    #     # #      #    #
-*    #     # #      #    #
-*    #     # #      #    #
-*    #     # #      #    #
-*     #####  ###### #####
-*
-*
-
-BeginTest                  LOG          Mesg_Starting
-                           stz          _testErrors
-                           stz          _testIteration
-                           stz          _testIteration+1
-
-
-
-BeginTestPass
-                           PRINTXY      #55;#10;Mesg_TestPass
-
-                           inc          _testIteration
-                           bne          :noroll
-                           inc          _testIteration+1
-:noroll                    lda          _testIteration+1
-                           ldx          _testIteration
-                           jsr          PRNTAX
-                           PRINTXY      #55;#12;Mesg_Writing
-
-                                                                      ; WRITE START
-                           clc
-                           xce
-                           rep          $10                           ; long x, short a
-                           lda          StartBank
-                           sta          CurBank
-                           ldy          #0                            ; update interval counter
-:bankloop                  lda          CurBank
-                           sta          :bankstore+3
-                           ldx          StartAddr
-                           lda          HexPattern
-:bankstore                 stal         $000000,x
-                           cpx          EndAddr
-                           beq          :donebank
-                           inx
-                           iny
-                           cpy          #UpdateScanInterval
-                           bcc          :bankstore
-                           jsr          PrintTestCurrent
-                           bcc          :noquit1
-                           jmp          :escpressed
-:noquit1                   ldy          #0
-                           bra          :bankstore
-:donebank
-                           ldy          #0                            ; because i'm anal.. this makes counter align
-                           inc          CurBank
-                           lda          EndBank
-                           cmp          CurBank
-                           bcs          :bankloop
-                           dec          CurBank                       ; so many bad hacks
-                           jsr          PrintTestCurrent              ; print final score ;)
-                           bcc          :noquit2
-                           jmp          :escpressed
-:noquit2                   sep          $10
-                                                                      ; WRITE END
-
-                           jsr          Pauser                        ; PAUSE
-
-                           PRINTXY      #55;#12;Mesg_Reading          ; READ PREP
-
-                                                                      ; READ START
-                           clc
-                           xce
-                           rep          $10                           ; long x, short a
-                           lda          StartBank
-                           sta          CurBank
-                           ldy          #0                            ; update interval counter
-:bankrloop                 lda          CurBank
-                           sta          :bankread+3
-                           ldx          StartAddr
-:bankread                  ldal         $000000,x
-                           cmp          HexPattern
-                           beq          :testpass
-                           phx
-                           sta          _stash                        ; = read value
-                           lda          HexPattern
-                           sta          _stash+1                      ; = expected value
-                           stx          _stash+2
-                           jsr          PrintTestError                ; addr in X
-                           plx
-:testpass                  cpx          EndAddr
-                           beq          :donerbank
-                           inx
-                           iny
-                           cpy          #UpdateScanInterval
-                           bcc          :bankread
-                           jsr          PrintTestCurrent
-                           ldy          #0
-                           bra          :bankread
-:donerbank
-                           ldy          #0                            ; because i'm anal.. this makes counter align
-                           inc          CurBank
-                           lda          EndBank
-                           cmp          CurBank
-                           bcs          :bankrloop
-                           dec          CurBank                       ; so many bad hacks
-                           jsr          PrintTestCurrent              ; print final score ;)
-                           sep          $10
-                                                                      ; WRITE END
-
-
-                           jsr          Pauser                        ; PAUSE
-                           lda          BorderColor
-                           sta          $C034
-                           jmp          BeginTestPass
-:escpressed                sep          $10
-
-                           rts
 
 _testIteration             ds           8
 _testErrors                ds           8
@@ -776,7 +668,8 @@ Mesg_TestPass              asc          " Test Pass:  ",00
 Mesg_Blank                 asc          "                 ",00
 Mesg_DetectedBanks         asc          "Setting default start/end banks to detected memory expansion: $",00
 Mesg_ToBank                asc          " to $",00
-
+Mesg_TestError1            asc          "Error: Press any",00
+Mesg_TestError2            asc          "key to continue.",00
 * Error message strings
 Mesg_E1                    asc          "Bad Read - Pass ",00
 Mesg_E2                    asc          "   Location: ",00
@@ -1404,4 +1297,3 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
-
