@@ -276,23 +276,25 @@ TestPrintErrors            PushAll
                            rep          #$10
                            PopAll
                            rts
-TestPauseError             lda TestErrorPause
-                           beq :no
+
+TestPauseError             lda          TestErrorPause                ;is this option enabled?
+                           beq          :no
                            PushAll
-                           sep #$10
-                           PRINTXY      #55;#14;Mesg_TestError1
+                           sep          #$10
+                           PRINTXY      #55;#14;Mesg_TestError1       ;draw messages
                            PRINTXY      #55;#15;Mesg_TestError2
 
-:nokey                           lda $C000
-                           bpl :nokey
-                           sta $C010
-                           PRINTXY      #55;#14;Mesg_Blank
+:pause                     lda          $C000                         ;wait for key
+                           bpl          :pause
+                           sta          $C010
+
+                           PRINTXY      #55;#14;Mesg_Blank            ;undraw messages
                            PRINTXY      #55;#15;Mesg_Blank
                            clc
                            xce
-                           rep #$10
+                           rep          #$10
                            PopAll
-:no                           rts
+:no                        rts
 
 TestLogError               PushAll
                            php
@@ -309,9 +311,7 @@ TestLogError               PushAll
                            inc          _testErrors
                            bne          :noRoll
                            inc          _testErrors+1
-:noRoll                                                               ;jsr          TestPrintErrors
-
-                           jsr          WinConsole
+:noRoll                    jsr          WinConsole
                            LOG          Mesg_F1                       ;Error Count
                            ldx          #_testErrors
                            ldy          #>_testErrors
@@ -443,11 +443,32 @@ TestMemoryLocation
                            bne          :UNHANDLED
                            jmp          Test_8BitWalk1RW
 
-:test16
-:UNHANDLED
+:test16                    rep          #$30                          ;full 16-bit for long M
+
+                           lda          TestType
+                           and          #$00ff
+                           cmp          #TT_BITPATTERN
+                           bne          :check16rand
+                           jmp          Test_16BitPatternRW
+:check16rand               cmp          #TT_RANDOM
+                           bne          :check16walk0
+                           jmp          Test_16RandomRW
+:check16walk0              cmp          #TT_BITWALK0
+                           bne          :check16walk1
+                           jmp          Test_16BitWalk0RW
+:check16walk1              cmp          #TT_BITWALK1
+                           bne          :UNHANDLED
+                           jmp          Test_16BitWalk1RW
+:UNHANDLED                 sep          #$30
+                           rep          #$10
+
                            rts
 
 TestMemoryLocationTwoPass  rts
+
+
+                            mx %10  ;still shortM longX
+* 8-bit R/W TESTS
 Test_8BitWalk0RW
                            lda          #%01111111
                            sta          HexPattern
@@ -508,35 +529,197 @@ Test_8RandomRW
 
 Test_8BitPatternRW
                            ldy          TestWriteRepeat
-:writeloop                 lda          HexPattern
+_writeloop                 lda          HexPattern
                            stal         $020000,x
 BANKPATCH01                =            *-1
                            lda          TestAdjacentWrite
-                           beq          :noAdjacentWrite
-:adjacentWrite             stal         $02FFFF,x                     ;-1
+                           beq          _noAdjacentWrite
+                           stal         $02FFFF,x                     ;-1
 BANKPATCH02                =            *-1
                            stal         $020001,x                     ;+1
 BANKPATCH03                =            *-1
 
-:noAdjacentWrite           dey
-                           bne          :writeloop
+_noAdjacentWrite           dey
+                           bne          _writeloop
 
                            jsr          CORRUPTOR
 
                            ldy          TestReadRepeat
-:readloop                  ldal         $020000,x
+_readloop                  ldal         $020000,x
 BANKPATCH04                =            *-1
                            cmp          HexPattern
-                           bne          :READERR8BP
+                           bne          _readerror
                            dey
-                           bne          :readloop
+                           bne          _readloop
                            rts
-:READERR8BP                jsr          TestLogError
-                           jsr TestPauseError
+_readerror                 jsr          TestLogError
+                           jsr          TestPauseError
                            rts
 
 
+* 16-bit R/W TESTS
+                           mx           %00
+Test_16BitWalk0RW
+                           lda          #%0111111111111111
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%1011111111111111
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%1101111111111111
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%1110111111111111
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%1111011111111111
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%1111101111111111
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%1111110111111111
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%1111111011111111
+                           sta          HexPattern
+                           jsr          Test_16Bit
 
+                           lda          #%1111111101111111
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%1111111110111111
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%1111111111011111
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%1111111111101111
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%1111111111110111
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%1111111111111011
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%1111111111111101
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%1111111111111110
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           sep          #$20
+                           rts
+                           mx           %00
+
+Test_16BitWalk1RW
+                           lda          #%1000000000000000
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%0100000000000000
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%0010000000000000
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%0001000000000000
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%0000100000000000
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%0000010000000000
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%0000001000000000
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%0000000100000000
+                           sta          HexPattern
+                           jsr          Test_16Bit
+
+
+                           lda          #%0000000010000000
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%0000000001000000
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%0000000000100000
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%0000000000010000
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%0000000000001000
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%0000000000000100
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%0000000000000010
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           lda          #%0000000000000001
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           sep          #$20
+                           rts
+                           mx           %00
+
+
+Test_16RandomRW            jsr          GetRandByte16
+                           sta          HexPattern
+                           jsr          Test_16Bit
+                           sep          #$20
+                           rts
+                           mx           %00
+
+
+Test_16BitPatternRW        jsr          Test_16Bit
+                           sep          #$20
+                           rts
+                           mx           %00
+
+* the real test function for 16-bit
+Test_16Bit                 ldy          TestWriteRepeat
+_writeloop16               lda          HexPattern
+                           stal         $020000,x
+BANKPATCH05                =            *-1
+                           lda          TestAdjacentWrite
+                           beq          _noAdjacentWrite16
+_adjacentWrite16           stal         $02FFFE,x                     ;-1
+BANKPATCH06                =            *-1
+                           stal         $020002,x                     ;+1
+BANKPATCH07                =            *-1
+
+_noAdjacentWrite16         dey
+                           bne          _writeloop16
+                           sep          #$20                          ;?????????????????
+                           jsr          CORRUPTOR
+                           clc
+                           xce
+                           rep          #$30                          ;????????????????????
+
+                           ldy          TestReadRepeat
+_readloop16                ldal         $020000,x
+BANKPATCH08                =            *-1
+                           cmp          HexPattern
+                           bne          _readerror16
+                           dey
+                           bne          _readloop16
+                           rts
+
+_readerror16               sep          #$20
+                           jsr          TestLogError
+                           jsr          TestPauseError
+                           clc
+                           xce
+                           rep          #$30
+                           rts
+
+                           mx           %10
 
 
 TestAdvanceLocation        lda          TestDirection
@@ -621,11 +804,15 @@ TestPatchBanks             lda          CurBank
                            sta          BANKPATCH02
                            sta          BANKPATCH03
                            sta          BANKPATCH04
-                           sta          BANKPATCHXX
+                           sta          BANKPATCHXX                   ;corruptor!
+                           sta          BANKPATCH05
+                           sta          BANKPATCH06
+                           sta          BANKPATCH07
+                           sta          BANKPATCH08
                            rts
 
 
-CORRUPTOR                   lda          $C000
+CORRUPTOR                  lda          $C000
                            bpl          _nokey
                            sta          $C010
                            cmp          #"c"
@@ -875,6 +1062,37 @@ PrintTimerVal
 *$cf (207)
 *$e7 (231)
 *$f5 (245)
+  mx $00
+GetRandByte16              sec
+                           xce
+                           sep          #$30
+
+                           lda          _seed16a
+                           beq          :doEor
+                           asl
+                           bcc          :noEor
+:doEor                     eor          #$a9
+:noEor                     sta          _seed16a
+
+                           lda          _seed16b
+                           beq          :doEorB
+                           asl
+                           bcc          :noEorB
+:doEorB                    eor          #$5f
+:noEorB                    sta          _seed16b
+
+                           clc
+                           xce
+                           rep          #$30
+                           lda          _seed16a
+                           rts
+_seed16a                   db           03
+_seed16b                   db           40
+                          mx           %11
+
+
+
+
 GetRandByte                                                           ; USE ONLY WITH CORRUPTOR
                            lda          _seed
                            beq          :doEor
