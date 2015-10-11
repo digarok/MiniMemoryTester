@@ -150,6 +150,7 @@ TestInit
                            sei                                        ; disable interrupts
                            stz          _testErrors
                            stz          _testIteration
+                           inc          _testIteration  ;actually, set to 1.  let test passes be indicated in natural numbers.  see, i'm not such a bad guy.
                            stz          _testIteration+1
                            stz          _testState
 
@@ -190,7 +191,8 @@ KeyHandled
                            bcc          :testComplete
 :infiniteIterations        jmp          TestMasterLoop
 TestAbort
-:testComplete              sep          #$10
+:testComplete               jsr TestForceUpdateStatus
+                            sep          #$10
                            jsr          LogTestDone
                            rts
 Mesg_Done                  asc          "DONE WITH TEST",$8D,00
@@ -389,13 +391,29 @@ TestLogError               PushAll
 *Mesg_Error0	asc "Wrote: $00 %12345678    Read: $00 %12345678"
 
 
+TestRollBack
+                          lda TestDirection
+                          eor #$01
+                          sta TestDirection
+                          jsr TestAdvanceLocation
+                          lda TestDirection
+                          eor #$01
+                          sta TestDirection
+                          rts
+
 TestForceUpdateStatus      PushAll
                            stx          _stash
                            bra          :print
 TestUpdateStatus           PushAll
                            stx          _stash                        ; save real X
-                           lda          _stash                        ;get low byte
-                           bne          :noprint
+                           ldy _updateTick
+                           dey
+                           sty _updateTick
+                           bne :noprint
+
+                           ldy #_updateInterval
+                           sty _updateTick
+
 :print                     sep          #$10                          ;in case?  there was a sec xce combo here
                            GOXY         #66;#12
                            lda          CurBank
@@ -411,7 +429,8 @@ TestUpdateStatus           PushAll
 :noprint                   PopAll
                            rts
 
-
+_updateTick                dw #_updateInterval
+_updateInterval             = #$0100
 
 
 
@@ -722,7 +741,10 @@ _readerror16               sep          #$20
                            mx           %10
 
 
-TestAdvanceLocation        lda          TestDirection
+TestAdvanceLocation
+                          lda          TestDirection
+
+
                            bne          :dn
 :up                        lda          TestSize16Bit
                            beq          :up8
@@ -737,13 +759,16 @@ TestAdvanceLocation        lda          TestDirection
                            beq          :dn8
 :dn16                      cpx          #0
                            beq          :hitBankBoundry
-                           dex
+                           dex  ;
+                           cpx          #0
+                           beq          :hitBankBoundryTest ;we still need to test in this case.  side effect of odd start/ends
+                            bra :testStartAddr
 :dn8                       cpx          #0
                            beq          :hitBankBoundry
                            dex
-                           cpx          StartAddr
+:testStartAddr                           cpx          StartAddr
                            bcc          :done
-                           clc
+:hitBankBoundryTest                           clc
                            rts
 :done
 :hitBankBoundry            sec
