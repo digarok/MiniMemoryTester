@@ -161,8 +161,10 @@ TestMasterLoop             clc
                            ldy          StartAddr
                            ldx          EndAddr
                            stz          CurBank
+
                            lda          _updateInterval               ;@todo ?
                            sta          _updateTick                   ;this hack makes bank loops consistent.  might not be the best thing
+
                            jsr          TestPrintIteration
                            jsr          TestPrintErrors               ;just to get it drawn
 :NextBank                  jsr          TestSetState                  ;sets read/write/both
@@ -1091,11 +1093,12 @@ PrintTimerVal
 *$cf (207)
 *$e7 (231)
 *$f5 (245)
-                           mx           $00
-GetRandByte16              sec
-                           xce
-                           sep          #$30
 
+
+* This is ridiculously poorly implemented.  Don't care.
+                           mx           $00
+GetRandByte16              PushAll
+                           ShortMX
                            lda          _seed16a
                            beq          :doEor
                            asl
@@ -1109,10 +1112,8 @@ GetRandByte16              sec
                            bcc          :noEorB
 :doEorB                    eor          #$5f
 :noEorB                    sta          _seed16b
-
-                           clc
-                           xce
-                           rep          #$30
+                           Full16
+                           PopAll
                            lda          _seed16a
                            rts
 _seed16a                   db           03
@@ -1562,4 +1563,3 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
-
