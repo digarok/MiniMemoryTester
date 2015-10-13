@@ -154,7 +154,6 @@ TestInit
                            stz          _testIteration+1
                            stz          _testState
 
-
 TestMasterLoop             clc
                            xce
                            rep          #$10                          ;long x/y
@@ -164,6 +163,7 @@ TestMasterLoop             clc
 
                            lda          _updateInterval               ;@todo ?
                            sta          _updateTick                   ;this hack makes bank loops consistent.  might not be the best thing
+                           jsr          TestForceUpdateStatus
 
                            jsr          TestPrintIteration
                            jsr          TestPrintErrors               ;just to get it drawn
@@ -578,6 +578,7 @@ BANKPATCH04                =            *-1
                            bne          _readloop
                            rts
 _readerror                 jsr          TestLogError
+                           jsr          TestPrintErrors
                            jsr          TestPauseError
                            rts
 
@@ -738,6 +739,7 @@ BANKPATCH08                =            *-1
 
 _readerror16               sep          #$20
                            jsr          TestLogError
+                           jsr          TestPrintErrors
                            jsr          TestPauseError
                            clc
                            xce
@@ -845,7 +847,6 @@ TestPatchBanks             lda          CurBank
 
 CORRUPTOR                  lda          $C000
                            bpl          _nokey
-                           sta          $C010
                            cmp          #"c"
                            bne          _nokey
                            lda          #$55
@@ -1563,3 +1564,4 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
+
