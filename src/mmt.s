@@ -150,7 +150,7 @@ TestInit
                            sei                                        ; disable interrupts
                            stz          _testErrors
                            stz          _testIteration
-                           inc          _testIteration  ;actually, set to 1.  let test passes be indicated in natural numbers.  see, i'm not such a bad guy.
+                           inc          _testIteration                ;actually, set to 1.  let test passes be indicated in natural numbers.  see, i'm not such a bad guy.
                            stz          _testIteration+1
                            stz          _testState
 
@@ -158,7 +158,11 @@ TestInit
 TestMasterLoop             clc
                            xce
                            rep          #$10                          ;long x/y
+                           ldy          StartAddr
+                           ldx          EndAddr
                            stz          CurBank
+                           lda          _updateInterval               ;@todo ?
+                           sta          _updateTick                   ;this hack makes bank loops consistent.  might not be the best thing
                            jsr          TestPrintIteration
                            jsr          TestPrintErrors               ;just to get it drawn
 :NextBank                  jsr          TestSetState                  ;sets read/write/both
@@ -191,8 +195,8 @@ KeyHandled
                            bcc          :testComplete
 :infiniteIterations        jmp          TestMasterLoop
 TestAbort
-:testComplete               jsr TestForceUpdateStatus
-                            sep          #$10
+:testComplete              jsr          TestForceUpdateStatus
+                           sep          #$10
                            jsr          LogTestDone
                            rts
 Mesg_Done                  asc          "DONE WITH TEST",$8D,00
@@ -392,27 +396,27 @@ TestLogError               PushAll
 
 
 TestRollBack
-                          lda TestDirection
-                          eor #$01
-                          sta TestDirection
-                          jsr TestAdvanceLocation
-                          lda TestDirection
-                          eor #$01
-                          sta TestDirection
-                          rts
+                           lda          TestDirection
+                           eor          #$01
+                           sta          TestDirection
+                           jsr          TestAdvanceLocation
+                           lda          TestDirection
+                           eor          #$01
+                           sta          TestDirection
+                           rts
 
 TestForceUpdateStatus      PushAll
                            stx          _stash
                            bra          :print
 TestUpdateStatus           PushAll
                            stx          _stash                        ; save real X
-                           ldy _updateTick
+                           ldy          _updateTick
                            dey
-                           sty _updateTick
-                           bne :noprint
+                           sty          _updateTick
+                           bne          :noprint
 
-                           ldy #_updateInterval
-                           sty _updateTick
+                           ldy          #_updateInterval
+                           sty          _updateTick
 
 :print                     sep          #$10                          ;in case?  there was a sec xce combo here
                            GOXY         #66;#12
@@ -429,8 +433,8 @@ TestUpdateStatus           PushAll
 :noprint                   PopAll
                            rts
 
-_updateTick                dw #_updateInterval
-_updateInterval             = #$0100
+_updateTick                dw           #_updateInterval
+_updateInterval            =            #$0100
 
 
 
@@ -486,7 +490,7 @@ TestMemoryLocation
 TestMemoryLocationTwoPass  rts
 
 
-                            mx %10  ;still shortM longX
+                           mx           %10                           ;still shortM longX
 * 8-bit R/W TESTS
 Test_8BitWalk0RW
                            lda          #%01111111
@@ -742,7 +746,7 @@ _readerror16               sep          #$20
 
 
 TestAdvanceLocation
-                          lda          TestDirection
+                           lda          TestDirection
 
 
                            bne          :dn
@@ -759,16 +763,16 @@ TestAdvanceLocation
                            beq          :dn8
 :dn16                      cpx          #0
                            beq          :hitBankBoundry
-                           dex  ;
+                           dex                                        ;
                            cpx          #0
-                           beq          :hitBankBoundryTest ;we still need to test in this case.  side effect of odd start/ends
-                            bra :testStartAddr
+                           beq          :hitBankBoundryTest           ;we still need to test in this case.  side effect of odd start/ends
+                           bra          :testStartAddr
 :dn8                       cpx          #0
                            beq          :hitBankBoundry
                            dex
-:testStartAddr                           cpx          StartAddr
+:testStartAddr             cpx          StartAddr
                            bcc          :done
-:hitBankBoundryTest                           clc
+:hitBankBoundryTest        clc
                            rts
 :done
 :hitBankBoundry            sec
@@ -1087,7 +1091,7 @@ PrintTimerVal
 *$cf (207)
 *$e7 (231)
 *$f5 (245)
-  mx $00
+                           mx           $00
 GetRandByte16              sec
                            xce
                            sep          #$30
@@ -1113,7 +1117,7 @@ GetRandByte16              sec
                            rts
 _seed16a                   db           03
 _seed16b                   db           40
-                          mx           %11
+                           mx           %11
 
 
 
@@ -1231,11 +1235,11 @@ MainMenuDefs
                            db           01                            ; memory size (bytes)
                            da           EndBank                       ; variable storage
 :StartAddr                 hex          19,06                         ; x,y
-                           db           Menu_TypeHex                  ; 1=hex input
+                           db           Menu_TypeHexByteOrder         ; 1=hex input
                            db           02                            ; memory size (bytes)
                            da           StartAddr                     ; variable storage
 :EndAddr                   hex          20,06                         ; x,y
-                           db           Menu_TypeHex                  ; 1=hex input
+                           db           Menu_TypeHexByteOrder         ; 1=hex input
                            db           02                            ; memory size (bytes)
                            da           EndAddr                       ; variable storage
 :TestType                  hex          19,07                         ; x,y
@@ -1246,7 +1250,6 @@ MainMenuDefs
                            db           Menu_TypeList                 ; 3=list input
                            db           6                             ; max len size (bytes), 3=option list
                            da           TestSizeTbl                   ; params definition & storage
-
 :HexPattern                hex          19,08                         ; x,y
                            db           Menu_TypeHex                  ; 3=list input
 _hexpatternsize            db           02                            ; max len size (bytes), 3=option list <- can change when 8 bit??
@@ -1302,8 +1305,10 @@ Menu_ItemSelected          db           0
 * ... also disable AdjacentWrite if TwoPass
 MenuUpdateConfig           lda          TestSize16Bit
                            bne          :is16bit
-:is8bit                    jmp          MenuSet8Bit
-:is16bit                   jmp          MenuSet16Bit
+:is8bit                    jsr          MenuFixMax8
+                           jmp          MenuSet8Bit
+:is16bit                   jsr          MenuFixMax16
+                           jmp          MenuSet16Bit
 MenuSet16Bit               lda          #2
                            bra          MenuSetBits
 MenuSet8Bit                jsr          MenuClearPatterns             ;clear leftover chars because strings are shorter now
@@ -1322,11 +1327,28 @@ MenuSetBits                sta          _hexpatternsize
                            cmp          _lastAdjacentWrite
                            beq          :done
                            sta          _lastAdjacentWrite
+
                            stz          TestTwoPass
                            stz          _lastTwoPass
 :done                      rts
 _lastTwoPass               db           0
 _lastAdjacentWrite         db           0
+
+MenuFixMax16               Full16
+                           lda          EndAddr
+                           cmp          #$FFFF
+                           bne          :noneed
+                           dec          EndAddr
+:noneed                    ShortMX
+                           rts
+
+MenuFixMax8                Full16
+                           lda          EndAddr
+                           cmp          #$FFFE
+                           bne          :noneed
+                           inc          EndAddr
+:noneed                    ShortMX
+                           rts
 
 * hack to allow for smaller portion of screen to update
 MenuClearPatterns          PRINTXY      #$17;#$8;_clearstring
@@ -1540,3 +1562,4 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
+

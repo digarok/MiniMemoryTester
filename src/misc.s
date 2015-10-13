@@ -22,12 +22,12 @@ CheckKey           lda   KEY
 :noKey             clc
                    rts
 
-ToLower            cmp #"Z"
-                   bcs :notUpper
-                   cmp #"A"
-                   bcc :notUpper
+ToLower            cmp   #"Z"
+                   bcs   :notUpper
+                   cmp   #"A"
+                   bcc   :notUpper
                    clc
-                   adc #$20 ;add 32 to get lower char
+                   adc   #$20                    ;add 32 to get lower char
 :notUpper          rts
 
 
@@ -109,19 +109,29 @@ WaitSCB            sta   :val+1
                                                  ; the problem is we can get the LAST
                                                  ; horizcnt even/odd right as it changes
                                                  ; and start early or something?
-
                    rts
 MAXSCB             db    0
 
+Full16             MAC
+                   clc
+                   xce
+                   rep   #$30
+                   <<<
 
-PushAll               MAC
-                      pha
-                      phx
-                      phy
-                      <<<
+ShortMX            MAC
+                   sep   #$30
+                   <<<
 
-PopAll                MAC
-                      ply
-                      plx
-                      pla
-                      <<<
+PushAll            MAC
+                   pha
+                   phx
+                   phy
+                   <<<
+
+PopAll             MAC
+                   ply
+                   plx
+                   pla
+                   <<<
+
+
