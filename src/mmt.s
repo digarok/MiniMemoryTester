@@ -168,6 +168,7 @@ TestMasterLoop             clc
                            jsr          TestPrintIteration
                            jsr          TestPrintErrors               ;just to get it drawn
 :NextBank                  jsr          TestSetState                  ;sets read/write/both
+                           jsr          TestForceUpdateStatus         ;print last tested address before we advance banks
                            jsr          TestGetNextBank               ;sets initial bank when CurBank = 0
                            jsr          TestPatchBanks                ;patches code for whatever CurBank is set to
                            jsr          TestPastFinalBank
@@ -196,9 +197,8 @@ KeyHandled
                            cmp          _testIteration
                            bcc          :testComplete
 :infiniteIterations        jmp          TestMasterLoop
-TestAbort
-:testComplete              jsr          TestForceUpdateStatus
-                           sep          #$10
+TestAbort                  jsr          TestForceUpdateStatus         ;print last test address
+:testComplete              sep          #$10
                            jsr          LogTestDone
                            rts
 Mesg_Done                  asc          "DONE WITH TEST",$8D,00
