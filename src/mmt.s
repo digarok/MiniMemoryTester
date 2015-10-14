@@ -161,10 +161,6 @@ TestMasterLoop             clc
                            ldx          EndAddr
                            stz          CurBank
 
-                           lda          _updateInterval               ;@todo ?
-                           sta          _updateTick                   ;this hack makes bank loops consistent.  might not be the best thing
-                           jsr          TestForceUpdateStatus
-
                            jsr          TestPrintIteration
                            jsr          TestPrintErrors               ;just to get it drawn
 :NextBank                  jsr          TestSetState                  ;sets read/write/both
@@ -254,7 +250,7 @@ TestPrintState             PushAll
                            bra          :done
 :check3                    cmp          #3
                            bne          :done
-                           PRINTXY      #53;#12;Mesg_RW
+                           PRINTXY      #53;#12;Mesg_WR
 :done                      clc
                            xce
                            rep          #$10
@@ -410,15 +406,17 @@ TestRollBack
 TestForceUpdateStatus      PushAll
                            stx          _stash
                            bra          :print
-TestUpdateStatus           PushAll
-                           stx          _stash                        ; save real X
-                           ldy          _updateTick
-                           dey
+TestUpdateStatus           ldy          _updateTick
+                           iny
                            sty          _updateTick
+                           cpy          #_updateInterval
                            bne          :noprint
 
-                           ldy          #_updateInterval
+                           PushAll
+                           stx          _stash                        ; save real X
+                           ldy          #$0000
                            sty          _updateTick
+
 
 :print                     sep          #$10                          ;in case?  there was a sec xce combo here
                            GOXY         #66;#12
@@ -432,11 +430,11 @@ TestUpdateStatus           PushAll
                            clc
                            xce
                            rep          #$10
-:noprint                   PopAll
-                           rts
+                           PopAll
+:noprint                   rts
 
-_updateTick                dw           #_updateInterval
-_updateInterval            =            #$0100
+_updateTick                dw           #0
+_updateInterval            =            #$0327
 
 
 
@@ -457,16 +455,16 @@ TestMemoryLocation
 :test8                     lda          TestType
                            cmp          #TT_BITPATTERN
                            bne          :checkrand
-                           jmp          Test_8BitPatternRW
+                           jmp          Test_8BitPatternWR
 :checkrand                 cmp          #TT_RANDOM
                            bne          :checkwalk0
-                           jmp          Test_8RandomRW
+                           jmp          Test_8RandomWR
 :checkwalk0                cmp          #TT_BITWALK0
                            bne          :checkwalk1
-                           jmp          Test_8BitWalk0RW
+                           jmp          Test_8BitWalk0WR
 :checkwalk1                cmp          #TT_BITWALK1
                            bne          :UNHANDLED
-                           jmp          Test_8BitWalk1RW
+                           jmp          Test_8BitWalk1WR
 
 :test16                    rep          #$30                          ;full 16-bit for long M
 
@@ -474,85 +472,181 @@ TestMemoryLocation
                            and          #$00ff
                            cmp          #TT_BITPATTERN
                            bne          :check16rand
-                           jmp          Test_16BitPatternRW
+                           jmp          Test_16BitPatternWR
 :check16rand               cmp          #TT_RANDOM
                            bne          :check16walk0
-                           jmp          Test_16RandomRW
+                           jmp          Test_16RandomWR
 :check16walk0              cmp          #TT_BITWALK0
                            bne          :check16walk1
-                           jmp          Test_16BitWalk0RW
+                           jmp          Test_16BitWalk0WR
 :check16walk1              cmp          #TT_BITWALK1
                            bne          :UNHANDLED
-                           jmp          Test_16BitWalk1RW
+                           jmp          Test_16BitWalk1WR
 :UNHANDLED                 sep          #$30
                            rep          #$10
 
                            rts
 
-TestMemoryLocationTwoPass  rts
+
+
+
+
+
+***********************
+*************************  TWO PASS !!
+****************************
+********************************
+************************************
+*****************************************
+
+
+TestMemoryLocationTwoPass
+
+                           lda          TestSize16Bit
+                           bne          :test16
+:test8                     lda          TestType
+                           cmp          #TT_BITPATTERN
+                           bne          :checkrand
+                           jmp          Test_8BitPatternTP
+:checkrand                 cmp          #TT_RANDOM
+                           bne          :checkwalk0
+                           jmp          Test_8RandomTP
+:checkwalk0                cmp          #TT_BITWALK0
+                           bne          :checkwalk1
+                           jmp          Test_8BitWalk0TP
+:checkwalk1                cmp          #TT_BITWALK1
+                           bne          :UNHANDLED
+                           jmp          Test_8BitWalk1TP
+
+:test16                    rep          #$30                          ;full 16-bit for long M
+
+                           lda          TestType
+                           and          #$00ff
+                           cmp          #TT_BITPATTERN
+                           bne          :check16rand
+                           jmp          Test_16BitPatternTP
+:check16rand               cmp          #TT_RANDOM
+                           bne          :check16walk0
+                           jmp          Test_16RandomTP
+:check16walk0              cmp          #TT_BITWALK0
+                           bne          :check16walk1
+                           jmp          Test_16BitWalk0TP
+:check16walk1              cmp          #TT_BITWALK1
+                           bne          :UNHANDLED
+                           jmp          Test_16BitWalk1TP
+:UNHANDLED                 sep          #$30
+                           rep          #$10
+
+                           rts
+
+* TWO PASS TESTS
+                           mx           %10
+Test_8BitWalk1TP
+Test_8BitWalk0TP
+Test_8RandomTP
+Test_16RandomTP
+Test_16BitWalk1TP
+Test_16BitWalk0TP
+Test_16BitPatternTP
+                           rts
+
+Test_8BitPatternTP         lda          _testState
+                           cmp          #TESTSTATE_READ
+                           beq          :read
+:write                     ldy          TestWriteRepeat
+_writeloop2                 lda          HexPattern
+                           stal         $020000,x
+BANKPATCH10                =            *-1
+                           dey
+                           bne          _writeloop2
+
+                           jsr          CORRUPTOR
+
+                           rts
+
+
+
+
+:read
+                           ldy          TestReadRepeat
+_readloop                  ldal         $020000,x
+BANKPATCH11                =            *-1
+                           cmp          HexPattern
+                           bne          :readerror
+                           dey
+                           bne          _readloop
+                           rts
+:readerror                 jsr          TestLogError
+                           jsr          TestPrintErrors
+                           jsr          TestPauseError
+                           rts
+
+
+
+
 
 
                            mx           %10                           ;still shortM longX
 * 8-bit R/W TESTS
-Test_8BitWalk0RW
+Test_8BitWalk0WR
                            lda          #%01111111
                            sta          HexPattern
-                           jsr          Test_8BitPatternRW
+                           jsr          Test_8BitPatternWR
                            lda          #%10111111
                            sta          HexPattern
-                           jsr          Test_8BitPatternRW
+                           jsr          Test_8BitPatternWR
                            lda          #%11011111
                            sta          HexPattern
-                           jsr          Test_8BitPatternRW
+                           jsr          Test_8BitPatternWR
                            lda          #%11101111
                            sta          HexPattern
-                           jsr          Test_8BitPatternRW
+                           jsr          Test_8BitPatternWR
                            lda          #%11110111
                            sta          HexPattern
-                           jsr          Test_8BitPatternRW
+                           jsr          Test_8BitPatternWR
                            lda          #%11111011
                            sta          HexPattern
-                           jsr          Test_8BitPatternRW
+                           jsr          Test_8BitPatternWR
                            lda          #%11111101
                            sta          HexPattern
-                           jsr          Test_8BitPatternRW
+                           jsr          Test_8BitPatternWR
                            lda          #%11111110
                            sta          HexPattern
-                           jmp          Test_8BitPatternRW
+                           jmp          Test_8BitPatternWR
 
-Test_8BitWalk1RW
+Test_8BitWalk1WR
                            lda          #%10000000
                            sta          HexPattern
-                           jsr          Test_8BitPatternRW
+                           jsr          Test_8BitPatternWR
                            lda          #%01000000
                            sta          HexPattern
-                           jsr          Test_8BitPatternRW
+                           jsr          Test_8BitPatternWR
                            lda          #%00100000
                            sta          HexPattern
-                           jsr          Test_8BitPatternRW
+                           jsr          Test_8BitPatternWR
                            lda          #%00010000
                            sta          HexPattern
-                           jsr          Test_8BitPatternRW
+                           jsr          Test_8BitPatternWR
                            lda          #%00001000
                            sta          HexPattern
-                           jsr          Test_8BitPatternRW
+                           jsr          Test_8BitPatternWR
                            lda          #%00000100
                            sta          HexPattern
-                           jsr          Test_8BitPatternRW
+                           jsr          Test_8BitPatternWR
                            lda          #%00000010
                            sta          HexPattern
-                           jsr          Test_8BitPatternRW
+                           jsr          Test_8BitPatternWR
                            lda          #%00000001
                            sta          HexPattern
-                           jmp          Test_8BitPatternRW
+                           jmp          Test_8BitPatternWR
 
-Test_8RandomRW
+Test_8RandomWR
                            jsr          GetRandByte
                            sta          HexPattern
-                           jmp          Test_8BitPatternRW
+                           jmp          Test_8BitPatternWR
 
 
-Test_8BitPatternRW
+Test_8BitPatternWR
                            ldy          TestWriteRepeat
 _writeloop                 lda          HexPattern
                            stal         $020000,x
@@ -570,14 +664,14 @@ _noAdjacentWrite           dey
                            jsr          CORRUPTOR
 
                            ldy          TestReadRepeat
-_readloop                  ldal         $020000,x
+_readloop2                  ldal         $020000,x
 BANKPATCH04                =            *-1
                            cmp          HexPattern
-                           bne          _readerror
+                           bne          :readerror
                            dey
-                           bne          _readloop
+                           bne          _readloop2
                            rts
-_readerror                 jsr          TestLogError
+:readerror                 jsr          TestLogError
                            jsr          TestPrintErrors
                            jsr          TestPauseError
                            rts
@@ -585,7 +679,7 @@ _readerror                 jsr          TestLogError
 
 * 16-bit R/W TESTS
                            mx           %00
-Test_16BitWalk0RW
+Test_16BitWalk0WR
                            lda          #%0111111111111111
                            sta          HexPattern
                            jsr          Test_16Bit
@@ -639,7 +733,7 @@ Test_16BitWalk0RW
                            rts
                            mx           %00
 
-Test_16BitWalk1RW
+Test_16BitWalk1WR
                            lda          #%1000000000000000
                            sta          HexPattern
                            jsr          Test_16Bit
@@ -695,7 +789,7 @@ Test_16BitWalk1RW
                            mx           %00
 
 
-Test_16RandomRW            jsr          GetRandByte16
+Test_16RandomWR            jsr          GetRandByte16
                            sta          HexPattern
                            jsr          Test_16Bit
                            sep          #$20
@@ -703,7 +797,7 @@ Test_16RandomRW            jsr          GetRandByte16
                            mx           %00
 
 
-Test_16BitPatternRW        jsr          Test_16Bit
+Test_16BitPatternWR        jsr          Test_16Bit
                            sep          #$20
                            rts
                            mx           %00
@@ -727,6 +821,13 @@ _noAdjacentWrite16         dey
                            clc
                            xce
                            rep          #$30                          ;????????????????????
+
+                           ldy          TestRefreshPause
+                           beq          :nopause
+:outer                     dey
+
+                           bne          :outer
+:nopause
 
                            ldy          TestReadRepeat
 _readloop16                ldal         $020000,x
@@ -842,6 +943,9 @@ TestPatchBanks             lda          CurBank
                            sta          BANKPATCH06
                            sta          BANKPATCH07
                            sta          BANKPATCH08
+
+                           sta  BANKPATCH10 ;two pass start here
+                           sta  BANKPATCH11
                            rts
 
 
@@ -881,7 +985,7 @@ Mesg_Starting              asc          $8D,"Starting Test",$8D,"Press P to paus
 Mesg_Waiting               asc          "   Waiting: ",00
 Mesg_Writing               asc          "   Writing: ",00
 Mesg_Reading               asc          "   Reading: ",00
-Mesg_RW                    asc          "Read&Write: ",00
+Mesg_WR                    asc          "Write&Read: ",00
 Mesg_Errors                asc          "    Errors:  ",$00
 Mesg_TestPass              asc          " Test Pass:  ",00
 Mesg_Blank                 asc          "                 ",00
@@ -1564,4 +1668,3 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
-
