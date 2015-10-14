@@ -157,6 +157,7 @@ TestInit
 TestMasterLoop             clc
                            xce
                            rep          #$10                          ;long x/y
+
                            ldy          StartAddr
                            ldx          EndAddr
                            stz          CurBank
@@ -192,7 +193,11 @@ KeyHandled
                            beq          :infiniteIterations           ;0=infinite
                            cmp          _testIteration
                            bcc          :testComplete
-:infiniteIterations        jmp          TestMasterLoop
+:infiniteIterations        lda          TestTwoPass
+                           beq          :notwopass
+                           stz          _testState                    ;hack to reset for two pass, will switch it back to write when it sees zero.  i hope. (update: WORKS! BOOM!)
+
+:notwopass                 jmp          TestMasterLoop
 TestAbort                  jsr          TestForceUpdateStatus         ;print last test address
 :testComplete              sep          #$10
                            jsr          LogTestDone
@@ -240,15 +245,15 @@ TestSetState               lda          TestTwoPass                   ;read pass
 TestPrintState             PushAll
                            sep          #$10
                            lda          _testState
-:check1                    cmp          #1
+:check1                    cmp          #TESTSTATE_WRITE
                            bne          :check2
                            PRINTXY      #53;#12;Mesg_Writing
                            bra          :done
-:check2                    cmp          #2
+:check2                    cmp          #TESTSTATE_READ
                            bne          :check3
                            PRINTXY      #53;#12;Mesg_Reading
                            bra          :done
-:check3                    cmp          #3
+:check3                    cmp          #TESTSTATE_BOTH
                            bne          :done
                            PRINTXY      #53;#12;Mesg_WR
 :done                      clc
@@ -554,7 +559,7 @@ Test_8BitPatternTP         lda          _testState
                            cmp          #TESTSTATE_READ
                            beq          :read
 :write                     ldy          TestWriteRepeat
-_writeloop2                 lda          HexPattern
+_writeloop2                lda          HexPattern
                            stal         $020000,x
 BANKPATCH10                =            *-1
                            dey
@@ -569,12 +574,12 @@ BANKPATCH10                =            *-1
 
 :read
                            ldy          TestReadRepeat
-_readloop                  ldal         $020000,x
+_readloop3                 ldal         $020000,x
 BANKPATCH11                =            *-1
                            cmp          HexPattern
                            bne          :readerror
                            dey
-                           bne          _readloop
+                           bne          _readloop3
                            rts
 :readerror                 jsr          TestLogError
                            jsr          TestPrintErrors
@@ -587,7 +592,7 @@ BANKPATCH11                =            *-1
 
 
                            mx           %10                           ;still shortM longX
-* 8-bit R/W TESTS
+* 8-bit W/R TESTS
 Test_8BitWalk0WR
                            lda          #%01111111
                            sta          HexPattern
@@ -664,7 +669,7 @@ _noAdjacentWrite           dey
                            jsr          CORRUPTOR
 
                            ldy          TestReadRepeat
-_readloop2                  ldal         $020000,x
+_readloop2                 ldal         $020000,x
 BANKPATCH04                =            *-1
                            cmp          HexPattern
                            bne          :readerror
@@ -677,7 +682,7 @@ BANKPATCH04                =            *-1
                            rts
 
 
-* 16-bit R/W TESTS
+* 16-bit W/R TESTS
                            mx           %00
 Test_16BitWalk0WR
                            lda          #%0111111111111111
@@ -944,8 +949,8 @@ TestPatchBanks             lda          CurBank
                            sta          BANKPATCH07
                            sta          BANKPATCH08
 
-                           sta  BANKPATCH10 ;two pass start here
-                           sta  BANKPATCH11
+                           sta          BANKPATCH10                   ;two pass start here
+                           sta          BANKPATCH11
                            rts
 
 
@@ -1475,7 +1480,7 @@ MainMenuStrs
                            asc          $1B,'ZZ',"       Bin Pattern  :                         ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                            asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                            asc          $1B,'ZZ',"  Direction            Wait on Error          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
-                           asc          $1B,'ZZ',"  Adjacent Wr.         Two-Pass R/W           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                           asc          $1B,'ZZ',"  Adjacent Wr.         Two-Pass W/R           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                            asc          $1B,'ZZ',"  Read Repeat          Write Repeat           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                            asc          $1B,'ZZ',"  Iterations           Refresh Pause          ",'_'," ",'Z',"     ([ BEGIN TEST ])     ",'_'," ",'_',$18,00
                            asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
@@ -1668,3 +1673,4 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
+
