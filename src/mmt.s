@@ -195,6 +195,7 @@ KeyHandled
                            bcc          :testComplete
 :infiniteIterations        lda          TestTwoPass
                            beq          :notwopass
+
                            stz          _testState                    ;hack to reset for two pass, will switch it back to write when it sees zero.  i hope. (update: WORKS! BOOM!)
 
 :notwopass                 jmp          TestMasterLoop
@@ -548,12 +549,20 @@ TestMemoryLocationTwoPass
                            mx           %10
 Test_8BitWalk1TP
 Test_8BitWalk0TP
-Test_8RandomTP
 Test_16RandomTP
 Test_16BitWalk1TP
 Test_16BitWalk0TP
 Test_16BitPatternTP
                            rts
+
+Test_8RandomTP             jsr          GetRandByte                   ;should match with seeds?
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
+
+
+
+TwoPassSeed                dw           #$0000                        ;we store the pass at the beginning of each write round, and restore it for the read round
+
 
 Test_8BitPatternTP         lda          _testState
                            cmp          #TESTSTATE_READ
@@ -568,9 +577,6 @@ BANKPATCH10                =            *-1
                            jsr          CORRUPTOR
 
                            rts
-
-
-
 
 :read
                            ldy          TestReadRepeat
@@ -913,13 +919,39 @@ TestPastFinalBank          lda          TestDirection
                            rts
 
 
+TestTwoPassRestoreSeed
+                           lda          TwoPassSeed+1                 ;if we are on a read pass, restore our seed
+                           sta          _seed16a
+                           lda          TwoPassSeed
+                           sta          _seed16b
+                           sta          _seed
+                           rts
+
+
+TestTwoPassMakeSeed
+                                                                      ;jsr          GetRandByte                   ;update our two-pass seed (even if we aren't in random mode.  too lazy to check.)
+                           sta          TwoPassSeed                   ;
+                           sta          _seed16b
+                           sta          _seed
+
+                                                                      ;jsr          GetRandByte                   ;
+                           sta          TwoPassSeed+1                 ;
+                           sta          _seed16a
+
+                           rts
+
+
+
+
 TestGetNextBank            lda          TestTwoPass                   ;see if we are doing two-passes of the bank
                            beq          :notTwoPass                   ;nope, no additional logic needed
                            lda          _testState
                            cmp          #TESTSTATE_READ               ;don't change bank on read pass of two-pass
                            bne          :twoPassNextBank
+                           jsr          TestTwoPassRestoreSeed
                            rts
-:twoPassNextBank
+
+:twoPassNextBank           jsr          TestTwoPassMakeSeed
 :notTwoPass                lda          TestDirection
                            bne          :descending
 :ascending                 lda          CurBank
@@ -1228,10 +1260,12 @@ GetRandByte16              PushAll
                            rts
 _seed16a                   db           03
 _seed16b                   db           40
+
+
+
+
+
                            mx           %11
-
-
-
 
 GetRandByte                                                           ; USE ONLY WITH CORRUPTOR
                            lda          _seed
