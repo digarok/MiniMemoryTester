@@ -448,7 +448,7 @@ TestUpdateStatus           ldy          _updateTick
 :noprint                   rts
 
 _updateTick                dw           #0
-_updateInterval            =            #$0002                        ;327 works well
+_updateInterval            =            #$0200                        ;327 works well
 
 
 
@@ -1055,6 +1055,7 @@ TwoPassBankLogics
                            jsr          TestTwoPassMakeSeed           ;for RANDOM, make a write seed
 :checkWriteBitwalk0        cmp          #TT_BITWALK0
                            bne          :checkWriteBitwalk1
+
                            jmp          TestUpdateWalkState           ;for BITWALK0, update walkpass and SEC when loops
 
 :checkWriteBitwalk1        cmp          #TT_BITWALK1
@@ -1068,7 +1069,7 @@ TwoPassBankLogics
 * sets carry when last test complete
 TestUpdateWalkState
                            inc          _walkState                    ;walkstate++
-                           lda          Test_16Bit
+                           lda          TestSize16Bit
                            bne          :walk16
 :walk8
                            lda          _walkState
@@ -1083,7 +1084,7 @@ TestUpdateWalkState
                            clc
                            rts
 
-:resetWalkState            brk          $f0                           ;walkstate=0
+:resetWalkState                                     ;walkstate=0
                            stz          _walkState
                            sec
                            rts
@@ -1829,5 +1830,3 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
-
-
