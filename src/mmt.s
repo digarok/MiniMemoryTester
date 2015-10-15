@@ -165,7 +165,8 @@ TestMasterLoop             clc
 
                            jsr          TestPrintIteration
                            jsr          TestPrintErrors               ;just to get it drawn
-:NextBank                  jsr          TestSetState                  ;sets read/write/both
+:NextBank
+                           jsr          TestSetState                  ;sets read/write/both
                            jsr          TestForceUpdateStatus         ;print last tested address before we advance banks
                            jsr          TestGetNextBank               ;sets initial bank when CurBank = 0
                            jsr          TestPatchBanks                ;patches code for whatever CurBank is set to
@@ -175,6 +176,9 @@ TestMasterLoop             clc
                            jsr          TestPrintState
                            jsr          TestGetStartAddress
 
+                           jsr          TestForceUpdateStatus         ;print last tested address before we advance banks
+                           stz _updateTick
+                           stz _updateTick+1
 
 
 :TestLoop                                                             ;THIS IS IT!
@@ -419,10 +423,8 @@ TestForceUpdateStatus      PushAll
                            stx          _stash
                            bra          :print
 TestUpdateStatus           ldy          _updateTick
-                           iny
-                           sty          _updateTick
                            cpy          #_updateInterval
-                           bne          :noprint
+                           bcc          :noprint
 
                            PushAll
                            stx          _stash                        ; save real X
@@ -443,7 +445,10 @@ TestUpdateStatus           ldy          _updateTick
                            xce
                            rep          #$10
                            PopAll
-:noprint                   rts
+:noprint                  ldy          _updateTick
+                           iny
+                           sty          _updateTick
+    rts
 
 _updateTick                dw           #0
 _updateInterval            =            #$0200                        ;327 works well
@@ -558,7 +563,6 @@ TestMemoryLocationTwoPass
 Test_16RandomTP
 Test_16BitWalk1TP
 Test_16BitWalk0TP
-Test_16BitPatternTP
                            rts
 
 _walkState                 db           0                             ;use to track in two pass mode
@@ -606,45 +610,45 @@ Walk8B0_7                  plx
 
 
 Test_8BitWalk1TP           lda          _walkState
-                          asl
-                          phx                                        ;TRICKY!  THEY ALL NEED TO PULL X WHEN THEY REACH THEIR JMP!
-                          tax
-                          jmp          (_walkTbl8B1,x)
+                           asl
+                           phx                                        ;TRICKY!  THEY ALL NEED TO PULL X WHEN THEY REACH THEIR JMP!
+                           tax
+                           jmp          (_walkTbl8B1,x)
 
 _walkTbl8B1                da           Walk8B1_0,Walk8B1_1,Walk8B1_2,Walk8B1_3,Walk8B1_4,Walk8B1_5,Walk8B1_6,Walk8B1_7
 
 Walk8B1_0                  plx
-                          lda          #%10000000
-                          sta          HexPattern
-                          jmp          Test_8BitPatternTP
+                           lda          #%10000000
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
 Walk8B1_1                  plx
-                          lda          #%01000000
-                          sta          HexPattern
-                          jmp          Test_8BitPatternTP
+                           lda          #%01000000
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
 Walk8B1_2                  plx
-                          lda          #%00100000
-                          sta          HexPattern
-                          jmp          Test_8BitPatternTP
+                           lda          #%00100000
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
 Walk8B1_3                  plx
-                          lda          #%00010000
-                          sta          HexPattern
-                          jmp          Test_8BitPatternTP
+                           lda          #%00010000
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
 Walk8B1_4                  plx
-                          lda          #%00001000
-                          sta          HexPattern
-                          jmp          Test_8BitPatternTP
+                           lda          #%00001000
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
 Walk8B1_5                  plx
-                          lda          #%00000100
-                          sta          HexPattern
-                          jmp          Test_8BitPatternTP
+                           lda          #%00000100
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
 Walk8B1_6                  plx
-                          lda          #%00000010
-                          sta          HexPattern
-                          jmp          Test_8BitPatternTP
+                           lda          #%00000010
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
 Walk8B1_7                  plx
-                          lda          #%00000001
-                          sta          HexPattern
-                          jmp          Test_8BitPatternTP
+                           lda          #%00000001
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
 
 
 Test_8RandomTP             jsr          GetRandByte                   ;should match with seeds?
@@ -683,6 +687,48 @@ BANKPATCH11                =            *-1
                            jsr          TestPrintErrors
                            jsr          TestPauseError
                            rts
+
+                          mx %00
+* 16-bit two-pass tests
+Test_16BitPatternTP
+                        lda          _testState
+                           cmp          #TESTSTATE_READ
+                           beq          :read16
+:write16                     ldy          TestWriteRepeat
+_writeloop3                lda          HexPattern
+                           stal         $020000,x
+BANKPATCH12                =            *-1
+                           dey
+                           bne          _writeloop3
+
+                           PushAll
+                           sep #$20
+                           jsr CORRUPTOR
+                           clc
+                           xce
+                           rep #$30
+                           PopAll
+
+                           sep #$20
+                           rts
+
+:read16
+                           ldy          TestReadRepeat
+_readloop4                 ldal         $020000,x
+BANKPATCH13                =            *-1
+                           cmp          HexPattern
+                           bne          :readerror
+                           dey
+                           bne          _readloop4
+                           sep $20
+                           rts
+:readerror                 jsr          TestLogError
+                           jsr          TestPrintErrors
+                           jsr          TestPauseError
+                           rts
+
+
+
 
 
 
@@ -950,14 +996,12 @@ _readerror16               sep          #$20
                            rep          #$30
                            rts
 
+
                            mx           %10
 
-
-TestAdvanceLocation
-                           lda          TestDirection
-
-
+TestAdvanceLocation        lda          TestDirection
                            bne          :dn
+
 :up                        lda          TestSize16Bit
                            beq          :up8
 :up16                      inx
@@ -967,6 +1011,7 @@ TestAdvanceLocation
                            cpx          EndAddr                       ;sets carry if we are past/done
                            bcs          :done
                            rts
+
 :dn                        lda          TestSize16Bit
                            beq          :dn8
 :dn16                      cpx          #0
@@ -1072,8 +1117,8 @@ TwoPassBankLogics
                            cmp          #TESTSTATE_READ               ;don't change bank on read pass of two-pass.  (we read during this pass)
                            bne          :checkWrite
                            lda          TestType
-:checkReadPattern          cmp #TT_BITPATTERN
-                           bne :checkReadRandom
+:checkReadPattern          cmp          #TT_BITPATTERN
+                           bne          :checkReadRandom
                            clc
                            rts
 :checkReadRandom           cmp          #TT_RANDOM
@@ -1093,8 +1138,8 @@ TwoPassBankLogics
 
 :checkWrite                                                           ;we're in write mode.
                            lda          TestType
-:checkWritePattern         cmp #TT_BITPATTERN
-                           bne :checkWriteRandom
+:checkWritePattern         cmp          #TT_BITPATTERN
+                           bne          :checkWriteRandom
                            sec
                            rts
 
@@ -1131,7 +1176,7 @@ TestUpdateWalkState
                            clc
                            rts
 
-:resetWalkState                                     ;walkstate=0
+:resetWalkState                                                       ;walkstate=0
                            stz          _walkState
                            sec
                            rts
@@ -1153,6 +1198,9 @@ TestPatchBanks             lda          CurBank
 
                            sta          BANKPATCH10                   ;two pass start here
                            sta          BANKPATCH11
+                           sta BANKPATCH12
+                           sta BANKPATCH13
+
                            rts
 
 
@@ -1160,8 +1208,8 @@ CORRUPTOR                  lda          $C000
                            bpl          _nokey
                            cmp          #"c"
                            bne          _nokey
-                           jsr GetRandTrash ;careful... this is 8-bit code.  make sure M=1
-                           ;lda          #$55
+                           jsr          GetRandTrash                  ;careful... this is 8-bit code.  make sure M=1
+                                                                      ;lda          #$55
                            stal         $020000,x
 BANKPATCHXX                =            *-1
 _nokey                     nop
