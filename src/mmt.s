@@ -153,6 +153,7 @@ TestInit
                            inc          _testIteration                ;actually, set to 1.  let test passes be indicated in natural numbers.  see, i'm not such a bad guy.
                            stz          _testIteration+1
                            stz          _testState
+                           stz          _walkState
 
 TestMasterLoop             clc
                            xce
@@ -224,9 +225,11 @@ TestKeyHandler             sta          $C010
 
 
 
-
+* This should just flip-flop, no matter what, on TwoPass mode... otherwise W/R (BOTH in one pass)
                            mx           %10
 TestSetState               lda          TestTwoPass                   ;read pass then write pass?
+                           stal         $020010
+                           stal         $030234
                            bne          :twopass
                            lda          #TESTSTATE_BOTH               ;r&w
                            sta          _testState
@@ -243,6 +246,7 @@ TestSetState               lda          TestTwoPass                   ;read pass
                            rts
 
 
+* Prints whether "Reading", "Writing", or "W/R" (Both)
 TestPrintState             PushAll
                            sep          #$10
                            lda          _testState
@@ -263,6 +267,7 @@ TestPrintState             PushAll
                            PopAll
                            rts
 
+* Prints current test pass string
 TestPrintIteration         PushAll
                            sep          #$10
                            PRINTXY      #53;#10;Mesg_TestPass
@@ -275,6 +280,7 @@ TestPrintIteration         PushAll
                            PopAll
                            rts
 
+* Prints current test error counts string
 TestPrintErrors            PushAll
                            sep          #$10
                            PRINTXY      #53;#11;Mesg_Errors
@@ -287,6 +293,7 @@ TestPrintErrors            PushAll
                            PopAll
                            rts
 
+* Pauses on test error (when enabled, otherwise immediately returns)
 TestPauseError             lda          TestErrorPause                ;is this option enabled?
                            beq          :no
                            PushAll
@@ -306,6 +313,7 @@ TestPauseError             lda          TestErrorPause                ;is this o
                            PopAll
 :no                        rts
 
+* Print a console error detailing the spot in memory where the error occured
 TestLogError               PushAll
                            php
                            sta          _stash+12                     ;8 or 16 bit? YES!
@@ -440,7 +448,7 @@ TestUpdateStatus           ldy          _updateTick
 :noprint                   rts
 
 _updateTick                dw           #0
-_updateInterval            =            #$0327
+_updateInterval            =            #$0002                        ;327 works well
 
 
 
@@ -507,10 +515,10 @@ TestMemoryLocation
 
 
 TestMemoryLocationTwoPass
-
                            lda          TestSize16Bit
                            bne          :test16
-:test8                     lda          TestType
+
+:test8                     lda          TestType                      ;8-bit tests
                            cmp          #TT_BITPATTERN
                            bne          :checkrand
                            jmp          Test_8BitPatternTP
@@ -524,8 +532,8 @@ TestMemoryLocationTwoPass
                            bne          :UNHANDLED
                            jmp          Test_8BitWalk1TP
 
-:test16                    rep          #$30                          ;full 16-bit for long M
 
+:test16                    rep          #$30                          ;full 16-bit for long M
                            lda          TestType
                            and          #$00ff
                            cmp          #TT_BITPATTERN
@@ -540,6 +548,7 @@ TestMemoryLocationTwoPass
 :check16walk1              cmp          #TT_BITWALK1
                            bne          :UNHANDLED
                            jmp          Test_16BitWalk1TP
+
 :UNHANDLED                 sep          #$30
                            rep          #$10
 
@@ -547,13 +556,56 @@ TestMemoryLocationTwoPass
 
 * TWO PASS TESTS
                            mx           %10
+
 Test_8BitWalk1TP
-Test_8BitWalk0TP
 Test_16RandomTP
 Test_16BitWalk1TP
 Test_16BitWalk0TP
 Test_16BitPatternTP
                            rts
+
+_walkState                 db           0                             ;use to track in two pass mode
+Test_8BitWalk0TP           lda          _walkState
+                           asl
+                           phx                                        ;TRICKY!  THEY ALL NEED TO PULL X WHEN THEY REACH THEIR JMP!
+                           tax
+                           jmp          (_walkTbl8B0,x)
+
+_walkTbl8B0                da           Walk8B0_0,Walk8B0_1,Walk8B0_2,Walk8B0_3,Walk8B0_4,Walk8B0_5,Walk8B0_6,Walk8B0_7
+
+Walk8B0_0                  plx
+                           lda          #%01111111
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
+Walk8B0_1                  plx
+                           lda          #%10111111
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
+Walk8B0_2                  plx
+                           lda          #%11011111
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
+Walk8B0_3                  plx
+                           lda          #%11101111
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
+Walk8B0_4                  plx
+                           lda          #%11110111
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
+Walk8B0_5                  plx
+                           lda          #%11111011
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
+Walk8B0_6                  plx
+                           lda          #%11111101
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
+Walk8B0_7                  plx
+                           lda          #%11111110
+                           sta          HexPattern
+                           jmp          Test_8BitPatternTP
+
 
 Test_8RandomTP             jsr          GetRandByte                   ;should match with seeds?
                            sta          HexPattern
@@ -928,8 +980,7 @@ TestTwoPassRestoreSeed
                            rts
 
 
-TestTwoPassMakeSeed
-                                                                      ;jsr          GetRandByte                   ;update our two-pass seed (even if we aren't in random mode.  too lazy to check.)
+TestTwoPassMakeSeed                                                   ;jsr          GetRandByte                   ;update our two-pass seed (even if we aren't in random mode.  too lazy to check.)
                            sta          TwoPassSeed                   ;
                            sta          _seed16b
                            sta          _seed
@@ -941,33 +992,104 @@ TestTwoPassMakeSeed
                            rts
 
 
+* TWO PASS has lots of exceptions where it doesn't advance the bank right away
+TestGetNextBank            lda          CurBank
+                           bne          :notInitialBank               ;can't be bank 00 so we must be starting a new test
+                           jmp          SetInitialBank                ;will RTS back - THIS IS THE SAME FOR ALL TESTS
+:notInitialBank
 
+                           lda          TestTwoPass                   ;see if we are doing two-passes of the bank
+                           bne          :TwoPass                      ;nope, no additional logic needed
+                           jmp          SetNextBank                   ;regular way to advance the bank
 
-TestGetNextBank            lda          TestTwoPass                   ;see if we are doing two-passes of the bank
-                           beq          :notTwoPass                   ;nope, no additional logic needed
-                           lda          _testState
-                           cmp          #TESTSTATE_READ               ;don't change bank on read pass of two-pass
-                           bne          :twoPassNextBank
-                           jsr          TestTwoPassRestoreSeed
+:TwoPass                   jsr          TwoPassBankLogics
+                           bcs          SetNextBank
                            rts
 
-:twoPassNextBank           jsr          TestTwoPassMakeSeed
-:notTwoPass                lda          TestDirection
+
+* Just sets the CurBank to either the StartAddr or EndAddr, depending on direction
+SetInitialBank             lda          TestDirection
                            bne          :descending
-:ascending                 lda          CurBank
-                           bne          :notInitialBank
-                           lda          StartBank
-                           sta          CurBank
+:ascending                 lda          StartBank
+                           bra          :storeInitialBank
+:descending                lda          EndBank
+:storeInitialBank          sta          CurBank
                            rts
-:notInitialBank            inc          CurBank
+
+* INCs or DECs CurBank, depending on direction.  No value checking at all.
+SetNextBank                lda          TestDirection
+                           bne          :descending
+                           inc          CurBank
                            rts
-:descending                lda          CurBank
-                           bne          :notInitialBank2
-                           lda          EndBank
-                           sta          CurBank
+:descending                dec          CurBank
                            rts
-:notInitialBank2           dec          CurBank
+
+
+* This is really TestGetNextBank for TwoPass!!!
+* Set CARRY on return to advance bank
+TwoPassBankLogics
+                           lda          _testState
+                           cmp          #TESTSTATE_READ               ;don't change bank on read pass of two-pass.  (we read during this pass)
+                           bne          :checkWrite
+                           lda          TestType
+:checkReadRandom           cmp          #TT_RANDOM
+                           bne          :checkReadBitwalk0
+                           jsr          TestTwoPassRestoreSeed        ;for RANDOM, restore our write seed
+:checkReadBitwalk0         cmp          #TT_BITWALK0
+                           bne          :checkReadBitwalk1
+                                                                      ;     jmp          TestUpdateWalkState           ;for BITWALK0, update walkpass and SEC when loops
+                           clc
                            rts
+:checkReadBitwalk1         cmp          #TT_BITWALK1
+                           bne          :unknown
+                                                                      ;       jmp          TestUpdateWalkState           ;for BITWALK1, update walkpass and SEC when loops
+                           clc
+                           rts
+
+
+:checkWrite                                                           ;we're in write mode.
+                           lda          TestType
+
+:checkWriteRandom          cmp          #TT_RANDOM
+                           bne          :checkWriteBitwalk0
+                           jsr          TestTwoPassMakeSeed           ;for RANDOM, make a write seed
+:checkWriteBitwalk0        cmp          #TT_BITWALK0
+                           bne          :checkWriteBitwalk1
+                           jmp          TestUpdateWalkState           ;for BITWALK0, update walkpass and SEC when loops
+
+:checkWriteBitwalk1        cmp          #TT_BITWALK1
+                           bne          :unknown
+                           jmp          TestUpdateWalkState           ;for BITWALK1, update walkpass and SEC when loops
+
+:unknown                   sec                                        ;unknown - advance? should not occur.
+                           rts
+
+
+* sets carry when last test complete
+TestUpdateWalkState
+                           inc          _walkState                    ;walkstate++
+                           lda          Test_16Bit
+                           bne          :walk16
+:walk8
+                           lda          _walkState
+                           cmp          #8
+                           beq          :resetWalkState
+                           clc
+                           rts
+:walk16
+                           lda          _walkState
+                           cmp          #16
+                           beq          :resetWalkState
+                           clc
+                           rts
+
+:resetWalkState            brk          $f0                           ;walkstate=0
+                           stz          _walkState
+                           sec
+                           rts
+
+
+
 
 
 TestPatchBanks             lda          CurBank
@@ -1707,4 +1829,5 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
+
 
