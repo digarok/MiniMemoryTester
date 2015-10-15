@@ -228,8 +228,6 @@ TestKeyHandler             sta          $C010
 * This should just flip-flop, no matter what, on TwoPass mode... otherwise W/R (BOTH in one pass)
                            mx           %10
 TestSetState               lda          TestTwoPass                   ;read pass then write pass?
-                           stal         $020010
-                           stal         $030234
                            bne          :twopass
                            lda          #TESTSTATE_BOTH               ;r&w
                            sta          _testState
@@ -557,7 +555,6 @@ TestMemoryLocationTwoPass
 * TWO PASS TESTS
                            mx           %10
 
-Test_8BitWalk1TP
 Test_16RandomTP
 Test_16BitWalk1TP
 Test_16BitWalk0TP
@@ -605,6 +602,49 @@ Walk8B0_7                  plx
                            lda          #%11111110
                            sta          HexPattern
                            jmp          Test_8BitPatternTP
+
+
+
+Test_8BitWalk1TP           lda          _walkState
+                          asl
+                          phx                                        ;TRICKY!  THEY ALL NEED TO PULL X WHEN THEY REACH THEIR JMP!
+                          tax
+                          jmp          (_walkTbl8B1,x)
+
+_walkTbl8B1                da           Walk8B1_0,Walk8B1_1,Walk8B1_2,Walk8B1_3,Walk8B1_4,Walk8B1_5,Walk8B1_6,Walk8B1_7
+
+Walk8B1_0                  plx
+                          lda          #%10000000
+                          sta          HexPattern
+                          jmp          Test_8BitPatternTP
+Walk8B1_1                  plx
+                          lda          #%01000000
+                          sta          HexPattern
+                          jmp          Test_8BitPatternTP
+Walk8B1_2                  plx
+                          lda          #%00100000
+                          sta          HexPattern
+                          jmp          Test_8BitPatternTP
+Walk8B1_3                  plx
+                          lda          #%00010000
+                          sta          HexPattern
+                          jmp          Test_8BitPatternTP
+Walk8B1_4                  plx
+                          lda          #%00001000
+                          sta          HexPattern
+                          jmp          Test_8BitPatternTP
+Walk8B1_5                  plx
+                          lda          #%00000100
+                          sta          HexPattern
+                          jmp          Test_8BitPatternTP
+Walk8B1_6                  plx
+                          lda          #%00000010
+                          sta          HexPattern
+                          jmp          Test_8BitPatternTP
+Walk8B1_7                  plx
+                          lda          #%00000001
+                          sta          HexPattern
+                          jmp          Test_8BitPatternTP
 
 
 Test_8RandomTP             jsr          GetRandByte                   ;should match with seeds?
@@ -1032,6 +1072,10 @@ TwoPassBankLogics
                            cmp          #TESTSTATE_READ               ;don't change bank on read pass of two-pass.  (we read during this pass)
                            bne          :checkWrite
                            lda          TestType
+:checkReadPattern          cmp #TT_BITPATTERN
+                           bne :checkReadRandom
+                           clc
+                           rts
 :checkReadRandom           cmp          #TT_RANDOM
                            bne          :checkReadBitwalk0
                            jsr          TestTwoPassRestoreSeed        ;for RANDOM, restore our write seed
@@ -1049,13 +1093,16 @@ TwoPassBankLogics
 
 :checkWrite                                                           ;we're in write mode.
                            lda          TestType
+:checkWritePattern         cmp #TT_BITPATTERN
+                           bne :checkWriteRandom
+                           sec
+                           rts
 
 :checkWriteRandom          cmp          #TT_RANDOM
                            bne          :checkWriteBitwalk0
                            jsr          TestTwoPassMakeSeed           ;for RANDOM, make a write seed
 :checkWriteBitwalk0        cmp          #TT_BITWALK0
                            bne          :checkWriteBitwalk1
-
                            jmp          TestUpdateWalkState           ;for BITWALK0, update walkpass and SEC when loops
 
 :checkWriteBitwalk1        cmp          #TT_BITWALK1
@@ -1113,7 +1160,8 @@ CORRUPTOR                  lda          $C000
                            bpl          _nokey
                            cmp          #"c"
                            bne          _nokey
-                           lda          #$55
+                           jsr GetRandTrash ;careful... this is 8-bit code.  make sure M=1
+                           ;lda          #$55
                            stal         $020000,x
 BANKPATCHXX                =            *-1
 _nokey                     nop
@@ -1223,70 +1271,6 @@ PrintTestError
 *Mesg_Error0	asc "Error: Bad Read Pass 0000  Location: 00/1234"
 *Mesg_Error0	asc "Wrote: $00 %12345678    Read: $00 %12345678"
 
-
-
-
-
-                           mx           %01
-PrintTestCurrent           pha
-                           phy
-                           stx          _stash                        ; save real X
-                           sep          #$30                          ;in case?  there was a sec xce combo here
-                           GOXY         #65;#12
-                           lda          CurBank
-                           sta          :corruptme+3
-                           jsr          PRBYTE
-                           lda          #"/"
-                           jsr          COUT
-                           lda          _stash+1
-                           sta          :corruptme+2
-                           jsr          PRBYTE
-                           lda          _stash
-                           sta          :corruptme+1
-                           jsr          PRBYTE
-* CORRUPTOR!
-:kloop                     lda          KEY
-                           cmp          #"c"                          ; REMOVE DEBUG
-                           beq          :corruptor
-                           cmp          #"C"
-                           beq          :corruptor
-                           bra          :nocorrupt
-:corruptor                 jsr          GetRandTrash
-:corruptme                 stal         $060000                       ; addr gets overwritten
-                           inc          $c034
-                           sta          STROBE                        ; we only clear if 'c' is hit
-                           inc          _stash                        ; \
-                           beq          :noroll                       ;  |- INX
-                           inc          _stash+1                      ; /
-:nocorrupt                 cmp          #"p"                          ; check lower p
-* @TODO make tolower for the comparisons
-                           beq          :pause
-                           cmp          #"P"
-                           beq          :pause
-                           bra          :nopause
-:pause                     sta          STROBE
-                           jsr          WaitKey
-:nopause
-                           cmp          #$9B
-                           bne          :noquit
-                           clc
-                           xce
-                           rep          $10
-                           ldx          _stash
-                           ply
-                           pla
-                           sec
-                           rts
-:noquit
-:noroll
-                           clc
-                           xce
-                           rep          $10
-                           ldx          _stash
-                           ply
-                           pla
-                           clc
-                           rts
 
 
 
