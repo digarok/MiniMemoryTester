@@ -154,6 +154,7 @@ TestInit
                            stz          _testIteration+1
                            stz          _testState
                            stz          _walkState
+                           jsr          TestTwoPassMakeSeed
 
 TestMasterLoop             clc
                            xce
@@ -177,8 +178,8 @@ TestMasterLoop             clc
                            jsr          TestGetStartAddress
 
                            jsr          TestForceUpdateStatus         ;print last tested address before we advance banks
-                           stz _updateTick
-                           stz _updateTick+1
+                           stz          _updateTick
+                           stz          _updateTick+1
 
 
 :TestLoop                                                             ;THIS IS IT!
@@ -445,10 +446,10 @@ TestUpdateStatus           ldy          _updateTick
                            xce
                            rep          #$10
                            PopAll
-:noprint                  ldy          _updateTick
+:noprint                   ldy          _updateTick
                            iny
                            sty          _updateTick
-    rts
+                           rts
 
 _updateTick                dw           #0
 _updateInterval            =            #$0200                        ;327 works well
@@ -560,7 +561,6 @@ TestMemoryLocationTwoPass
 * TWO PASS TESTS
                            mx           %10
 
-Test_16RandomTP
 Test_16BitWalk1TP
 Test_16BitWalk0TP
                            rts
@@ -688,13 +688,33 @@ BANKPATCH11                =            *-1
                            jsr          TestPauseError
                            rts
 
-                          mx %00
+                           mx           %00
+
+
+                           mx           %00
+
 * 16-bit two-pass tests
+
+
+Test_16RandomTP            jsr          GetRandByte16
+                           sta          HexPattern
+                           jsr          Test_16BitPatternTP
+                           sep          #$20
+                           rts
+                           mx           %00
+
+
+*Test_16BitPatternWR        jsr          Test_16Bit
+                           sep          #$20
+                           rts
+                           mx           %00
+
+
 Test_16BitPatternTP
-                        lda          _testState
+                           lda          _testState
                            cmp          #TESTSTATE_READ
                            beq          :read16
-:write16                     ldy          TestWriteRepeat
+:write16                   ldy          TestWriteRepeat
 _writeloop3                lda          HexPattern
                            stal         $020000,x
 BANKPATCH12                =            *-1
@@ -702,16 +722,16 @@ BANKPATCH12                =            *-1
                            bne          _writeloop3
 
                            PushAll
-                           sep #$20
-                           jsr CORRUPTOR
+                           sep          #$20
+                           jsr          CORRUPTOR
                            clc
                            xce
-                           rep #$30
+                           rep          #$30
                            PopAll
 
-                           sep #$20
+                           sep          #$20
                            rts
-
+                           mx           %00
 :read16
                            ldy          TestReadRepeat
 _readloop4                 ldal         $020000,x
@@ -720,9 +740,10 @@ BANKPATCH13                =            *-1
                            bne          :readerror
                            dey
                            bne          _readloop4
-                           sep $20
+                           sep          $20
                            rts
-:readerror                 jsr          TestLogError
+:readerror                 sep          $20
+                           jsr          TestLogError
                            jsr          TestPrintErrors
                            jsr          TestPauseError
                            rts
@@ -965,6 +986,8 @@ BANKPATCH07                =            *-1
 
 _noAdjacentWrite16         dey
                            bne          _writeloop16
+
+
                            sep          #$20                          ;?????????????????
                            jsr          CORRUPTOR
                            clc
@@ -1065,15 +1088,14 @@ TestTwoPassRestoreSeed
                            rts
 
 
-TestTwoPassMakeSeed                                                   ;jsr          GetRandByte                   ;update our two-pass seed (even if we aren't in random mode.  too lazy to check.)
+TestTwoPassMakeSeed        jsr          GetRandByte                   ;update our two-pass seed (even if we aren't in random mode.  too lazy to check.)
                            sta          TwoPassSeed                   ;
                            sta          _seed16b
                            sta          _seed
 
-                                                                      ;jsr          GetRandByte                   ;
+                           jsr          GetRandByte                   ;
                            sta          TwoPassSeed+1                 ;
                            sta          _seed16a
-
                            rts
 
 
@@ -1124,14 +1146,15 @@ TwoPassBankLogics
 :checkReadRandom           cmp          #TT_RANDOM
                            bne          :checkReadBitwalk0
                            jsr          TestTwoPassRestoreSeed        ;for RANDOM, restore our write seed
-:checkReadBitwalk0         cmp          #TT_BITWALK0
-                           bne          :checkReadBitwalk1
-                                                                      ;     jmp          TestUpdateWalkState           ;for BITWALK0, update walkpass and SEC when loops
                            clc
                            rts
+:checkReadBitwalk0         cmp          #TT_BITWALK0
+                           bne          :checkReadBitwalk1
+                           clc
+                           rts
+
 :checkReadBitwalk1         cmp          #TT_BITWALK1
                            bne          :unknown
-                                                                      ;       jmp          TestUpdateWalkState           ;for BITWALK1, update walkpass and SEC when loops
                            clc
                            rts
 
@@ -1146,6 +1169,8 @@ TwoPassBankLogics
 :checkWriteRandom          cmp          #TT_RANDOM
                            bne          :checkWriteBitwalk0
                            jsr          TestTwoPassMakeSeed           ;for RANDOM, make a write seed
+                           sec
+                           rts
 :checkWriteBitwalk0        cmp          #TT_BITWALK0
                            bne          :checkWriteBitwalk1
                            jmp          TestUpdateWalkState           ;for BITWALK0, update walkpass and SEC when loops
@@ -1198,8 +1223,8 @@ TestPatchBanks             lda          CurBank
 
                            sta          BANKPATCH10                   ;two pass start here
                            sta          BANKPATCH11
-                           sta BANKPATCH12
-                           sta BANKPATCH13
+                           sta          BANKPATCH12
+                           sta          BANKPATCH13
 
                            rts
 
@@ -1862,3 +1887,4 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
+
