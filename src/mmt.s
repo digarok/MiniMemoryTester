@@ -5,6 +5,26 @@
 *  2015-09-16                          *
 ****************************************
 
+
+********************************************************************
+* Some notes                                                       *
+*                                                                  *
+* Large portions of this program are written in one of the two cpu *
+* modes:   m=1 (short) x=0 (long)    or    m=0 (long) x=0 (long)   *
+* The 8-bit test modes, in particular, are written with a short    *
+* accumulator, but long index registers.  This way it can easily   *
+* scan a bank of memory using the X register from 0000 to FFFF.    *
+* Likewise, when running 16-bit test modes, we write 16 bit values *
+* using a long accumulator, and still using long index registers.  *
+* However, we also increment or decrement by two, since it writes  *
+* two bytes at a time with a long accumulator.                     *
+*                                                                  *
+* This program favors configurability and reusable code, over      *
+* speed.  There's also not much thought to stability, but I wanted *
+* to allow the user to try to test their RAM as they see fit.      *
+*                                                                  *
+********************************************************************
+
                            org          $2000                         ; start at $2000 (all ProDOS8 system files)
                            typ          $ff                           ; set P8 type ($ff = "SYS") for output file
                            dsk          mtsystem                      ; tell compiler what name for output file
@@ -1044,6 +1064,7 @@ TestTwoPassRestoreSeed
                            lda          TwoPassSeed+1                 ;if we are on a read pass, restore our seed
                            sta          _seed16a
                            sta          _seed
+
                            lda          TwoPassSeed
                            sta          _seed16b
 
