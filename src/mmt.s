@@ -173,7 +173,7 @@ TestInit
                            inc          _testIteration                ;actually, set to 1.  let test passes be indicated in natural numbers.  see, i'm not such a bad guy.
                            stz          _testIteration+1
                            stz          _testState
-                           stz          _walkState
+                           stz          TwoPassWalkState
                            jsr          TestTwoPassMakeSeed
 
 TestMasterLoop             clc
@@ -578,27 +578,15 @@ TestMemoryLocationTwoPass
 
                            rts
 
-* TWO PASS TESTS
-
-
-Test_16BitWalk1TP
-Test_16BitWalk0TP
-                           rts
-
-
-
-
-
-
-
-
-
-_walkState                 db           0                             ;use to track in two pass mode
+********************************
+*                              *
+*      TWO PASS TESTS          *
+*                              *
+********************************
 
                            mx           %10
-
 Test_8BitWalk0TP           phx
-                           lda          _walkState
+                           lda          TwoPassWalkState
                            tax
                            lda          _walkTbl8B0,x
                            sta          HexPattern
@@ -616,7 +604,7 @@ _walkTbl8B0                db           #%01111111
 
                            mx           %10
 Test_8BitWalk1TP           phx
-                           lda          _walkState
+                           lda          TwoPassWalkState
                            tax
                            lda          _walkTbl8B1,x
                            sta          HexPattern
@@ -638,6 +626,7 @@ Test_8RandomTP             jsr          GetRandByte                   ;should ma
 
 
 
+TwoPassWalkState           dw           0                             ;use to track in two pass mode (I treat this like a byte in places)
 TwoPassSeed                dw           #$0000                        ;we store the pass at the beginning of each write round, and restore it for the read round
 
 
@@ -675,6 +664,64 @@ BANKPATCH11                =            *-1
                            mx           %00
 
 * 16-bit two-pass tests
+Test_16BitWalk1TP          phx
+                           lda          TwoPassWalkState
+                           and          #$00ff
+                           asl
+                           tax
+                           lda          _walkTbl16B1,x
+                           sta          HexPattern
+                           plx
+                           jsr          Test_16BitPatternTP
+                           sep          #$20
+                           rts
+                           mx           %00
+_walkTbl16B1               dw           #%1000000000000000
+                           dw           #%0100000000000000
+                           dw           #%0010000000000000
+                           dw           #%0001000000000000
+                           dw           #%0000100000000000
+                           dw           #%0000010000000000
+                           dw           #%0000001000000000
+                           dw           #%0000000100000000
+                           dw           #%0000000010000000
+                           dw           #%0000000001000000
+                           dw           #%0000000000100000
+                           dw           #%0000000000010000
+                           dw           #%0000000000001000
+                           dw           #%0000000000000100
+                           dw           #%0000000000000010
+                           dw           #%0000000000000001
+
+
+Test_16BitWalk0TP          phx
+                           lda          TwoPassWalkState
+                           and          #$00ff
+                           asl
+                           tax
+                           lda          _walkTbl16B0,x
+                           sta          HexPattern
+                           plx
+                           jsr          Test_16BitPatternTP
+                           sep          #$20
+                           rts
+                           mx           %00
+_walkTbl16B0               dw           #%0111111111111111
+                           dw           #%1011111111111111
+                           dw           #%1101111111111111
+                           dw           #%1110111111111111
+                           dw           #%1111011111111111
+                           dw           #%1111101111111111
+                           dw           #%1111110111111111
+                           dw           #%1111111011111111
+                           dw           #%1111111101111111
+                           dw           #%1111111110111111
+                           dw           #%1111111111011111
+                           dw           #%1111111111101111
+                           dw           #%1111111111110111
+                           dw           #%1111111111111011
+                           dw           #%1111111111111101
+                           dw           #%1111111111111110
 
 
 Test_16RandomTP            jsr          GetRandByte16
@@ -1168,24 +1215,24 @@ TwoPassBankLogics
 
 * sets carry when last test complete
 TestUpdateWalkState
-                           inc          _walkState                    ;walkstate++
+                           inc          TwoPassWalkState              ;walkstate++
                            lda          TestSize16Bit
                            bne          :walk16
 :walk8
-                           lda          _walkState
+                           lda          TwoPassWalkState
                            cmp          #8
                            beq          :resetWalkState
                            clc
                            rts
 :walk16
-                           lda          _walkState
+                           lda          TwoPassWalkState
                            cmp          #16
                            beq          :resetWalkState
                            clc
                            rts
 
 :resetWalkState                                                       ;walkstate=0
-                           stz          _walkState
+                           stz          TwoPassWalkState
                            sec
                            rts
 
@@ -1870,3 +1917,4 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
+
