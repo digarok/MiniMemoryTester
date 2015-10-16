@@ -559,96 +559,57 @@ TestMemoryLocationTwoPass
                            rts
 
 * TWO PASS TESTS
-                           mx           %10
+
 
 Test_16BitWalk1TP
 Test_16BitWalk0TP
                            rts
 
+
+
+
+
+
+
+
+
 _walkState                 db           0                             ;use to track in two pass mode
-Test_8BitWalk0TP           lda          _walkState
-                           asl
-                           phx                                        ;TRICKY!  THEY ALL NEED TO PULL X WHEN THEY REACH THEIR JMP!
+
+                           mx           %10
+
+Test_8BitWalk0TP           phx
+                           lda          _walkState
                            tax
-                           jmp          (_walkTbl8B0,x)
-
-_walkTbl8B0                da           Walk8B0_0,Walk8B0_1,Walk8B0_2,Walk8B0_3,Walk8B0_4,Walk8B0_5,Walk8B0_6,Walk8B0_7
-
-Walk8B0_0                  plx
-                           lda          #%01111111
+                           lda          _walkTbl8B0,x
                            sta          HexPattern
+                           plx
                            jmp          Test_8BitPatternTP
-Walk8B0_1                  plx
-                           lda          #%10111111
-                           sta          HexPattern
-                           jmp          Test_8BitPatternTP
-Walk8B0_2                  plx
-                           lda          #%11011111
-                           sta          HexPattern
-                           jmp          Test_8BitPatternTP
-Walk8B0_3                  plx
-                           lda          #%11101111
-                           sta          HexPattern
-                           jmp          Test_8BitPatternTP
-Walk8B0_4                  plx
-                           lda          #%11110111
-                           sta          HexPattern
-                           jmp          Test_8BitPatternTP
-Walk8B0_5                  plx
-                           lda          #%11111011
-                           sta          HexPattern
-                           jmp          Test_8BitPatternTP
-Walk8B0_6                  plx
-                           lda          #%11111101
-                           sta          HexPattern
-                           jmp          Test_8BitPatternTP
-Walk8B0_7                  plx
-                           lda          #%11111110
-                           sta          HexPattern
-                           jmp          Test_8BitPatternTP
+_walkTbl8B0                db           #%01111111
+                           db           #%10111111
+                           db           #%11011111
+                           db           #%11101111
+                           db           #%11110111
+                           db           #%11111011
+                           db           #%11111101
+                           db           #%11111110
 
 
-
-Test_8BitWalk1TP           lda          _walkState
-                           asl
-                           phx                                        ;TRICKY!  THEY ALL NEED TO PULL X WHEN THEY REACH THEIR JMP!
+                           mx           %10
+Test_8BitWalk1TP           phx
+                           lda          _walkState
                            tax
-                           jmp          (_walkTbl8B1,x)
-
-_walkTbl8B1                da           Walk8B1_0,Walk8B1_1,Walk8B1_2,Walk8B1_3,Walk8B1_4,Walk8B1_5,Walk8B1_6,Walk8B1_7
-
-Walk8B1_0                  plx
-                           lda          #%10000000
+                           lda          _walkTbl8B1,x
                            sta          HexPattern
+                           plx
                            jmp          Test_8BitPatternTP
-Walk8B1_1                  plx
-                           lda          #%01000000
-                           sta          HexPattern
-                           jmp          Test_8BitPatternTP
-Walk8B1_2                  plx
-                           lda          #%00100000
-                           sta          HexPattern
-                           jmp          Test_8BitPatternTP
-Walk8B1_3                  plx
-                           lda          #%00010000
-                           sta          HexPattern
-                           jmp          Test_8BitPatternTP
-Walk8B1_4                  plx
-                           lda          #%00001000
-                           sta          HexPattern
-                           jmp          Test_8BitPatternTP
-Walk8B1_5                  plx
-                           lda          #%00000100
-                           sta          HexPattern
-                           jmp          Test_8BitPatternTP
-Walk8B1_6                  plx
-                           lda          #%00000010
-                           sta          HexPattern
-                           jmp          Test_8BitPatternTP
-Walk8B1_7                  plx
-                           lda          #%00000001
-                           sta          HexPattern
-                           jmp          Test_8BitPatternTP
+_walkTbl8B1                db           #%10000000
+                           db           #%01000000
+                           db           #%00100000
+                           db           #%00010000
+                           db           #%00001000
+                           db           #%00000100
+                           db           #%00000010
+                           db           #%00000001
 
 
 Test_8RandomTP             jsr          GetRandByte                   ;should match with seeds?
