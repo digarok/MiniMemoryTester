@@ -1043,9 +1043,10 @@ TestPastFinalBank          lda          TestDirection
 TestTwoPassRestoreSeed
                            lda          TwoPassSeed+1                 ;if we are on a read pass, restore our seed
                            sta          _seed16a
+                           sta          _seed
                            lda          TwoPassSeed
                            sta          _seed16b
-                           sta          _seed
+
                            rts
 
 
@@ -1848,4 +1849,3 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
-
