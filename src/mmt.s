@@ -43,8 +43,8 @@ Init
 
 
                            jsr          DetectRam
-                           jsr PrintMemoryMap
-                           jsr RDKEY
+                           jsr          PrintMemoryMap
+                           jsr          RDKEY
                            lda          BankExpansionLowest
                            sta          StartBank
                            lda          BankExpansionHighest
@@ -1745,10 +1745,6 @@ MainMenuStrs
                            hex          00,00
 
 
-
-
-
-
 * Creates a 256 byte map of each bank, "BankRam"
 * The map shows whether it's Built-in RAM, ROM, Expansion RAM, etc.
 DetectRam
@@ -1775,18 +1771,35 @@ DetectRam
                            sta          BankMap+$FC                   ;
                            sta          BankMap+$FD                   ;
                            ldx          #$10                          ;ROM3 starts scan at bank 10
-                           bra          :detectloop
+                           txy
+                           bra          :writeloop
 
 :rom0or1                                                              ;no additional mappings
                            lda          #$FE                          ;ROM1 end bank FE
                            sta          :endbankscan+1                ;but change our max scan bank
+                           sta          :endbankscan2+1               ;but change our max scan bank
                            ldx          #$02                          ;ROM0/1 starts scan at bank 02
+                           txy
 
-:detectloop                txa                                        ;we'll store the bank number
+
+:writeloop                 txa                                        ;we'll store the bank number
                            sta          :writer+3                     ;overwrite bank address
-                           sta          :reader+3
-                           sta          :compare+1
+
+                           eor          #$FF                          ;INVERT
 :writer                    stal         $000000                       ;should overwrite first byte
+                           inx
+                           cpx          #$E0
+                           bne          :endbankscan
+                           ldx          #$F0                          ;skip to bank F0 (skip banks E0-EF)
+:endbankscan               cpx          #$FC                          ;ROM3 end bank (default)
+                           bcc          :writeloop                    ;blt
+
+
+                           tyx                                        ;restore start bank
+:detectloopread            txa
+                           sta          :reader+3
+                           eor          #$FF
+                           sta          :compare+1
 :reader                    ldal         $000000
 :compare                   cmp          #$00
                            bne          :notused
@@ -1794,15 +1807,17 @@ DetectRam
                            lda          #BankRAMFastExpansion         ;store mapping
                            sta          BankMap,x
 :continue                  inx
-                           cpx          #$E0                          ;skip banks $E0-$EF
-                           bcc          :endbankscan                  ; <E0
-                           cpx          #$F0
-                           bcs          :endbankscan                  ; >= F0    (>EF)
-                           ldx          #$F0                          ;skip to bank F0
-                           bra          :detectloop
-:endbankscan               cpx          #$FC                          ;ROM3 end bank (default)
-                           bcc          :detectloop                   ;blt
+                           cpx          #$E0
+                           bne          :endbankscan2
+                           ldx          #$F0                          ;skip to bank F0 (skip banks E0-EF)
 
+:endbankscan2              cpx          #$FC                          ;ROM3 end bank (default)
+                           bcc          :detectloopread               ;blt
+
+
+
+* This part looks for the lowest and highest banks to pre-populate
+* the Start Bank and End Bank for the tests.
                                                                       ;let's find low/high to simplify things
                            ldx          #$ff
 :lowloop                   lda          BankMap,x
@@ -1862,27 +1877,27 @@ DetectRam
 
 
 PrintMemoryMap
-  jsr CROUT
+                           jsr          CROUT
 
-    ldx #$0
-    ldy #$0
-:loop    lda BankMap,x
-    phy
-    phx
-    jsr PRBYTE
-    lda #" "
-    jsr COUT
-    plx
-    ply
-    iny
-    cpy #16
-    bne :noty
-    jsr CROUT
-    ldy #0
+                           ldx          #$0
+                           ldy          #$0
+:loop                      lda          BankMap,x
+                           phy
+                           phx
+                           jsr          PRBYTE
+                           lda          #" "
+                           jsr          COUT
+                           plx
+                           ply
+                           iny
+                           cpy          #16
+                           bne          :noty
+                           jsr          CROUT
+                           ldy          #0
 :noty
-    inx
-    bne :loop
-    rts
+                           inx
+                           bne          :loop
+                           rts
 
 
 * Takes address in X/Y and prints out Int stored there
