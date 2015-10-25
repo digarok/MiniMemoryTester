@@ -267,9 +267,14 @@ Intro               lda       #$f5                    ;gray
                     sta       $C00f
                     sta       TXTPAGE1
 
-                    PRINTXY   #25;#20;Mesg_Ultimate
+                    jsr       Clicky
+                    PRINTXY   #25;#20;Mesg_Ultimate0
+                    jsr       Clicky
+                    PRINTXY   #25;#21;Mesg_Ultimate1
+                    jsr       CheckKey                ;
+                    bcs       :pauseover              ;SKIP THE REST!
 
-                    lda       #$03
+                    lda       #$05
 :longerwait         pha
                     jsr       WaitSome
                     pla
@@ -289,6 +294,9 @@ Intro               lda       #$f5                    ;gray
                     jsr       WaitSome
                     jsr       WaitSome
 
+                    jsr       CheckKey                ;
+                    bcs       :pauseover              ;SKIP THE REST!
+
 
                     sta       TXTPAGE2
 
@@ -305,15 +313,21 @@ Intro               lda       #$f5                    ;gray
 :invisible
                     jsr       VBlankForce
 
-
+                    jsr       CheckKey                ;
+                    bcs       :pauseover              ;SKIP THE REST!
 
                     plx
                     inx
                     bra       :prloop
 :done
 
-                    ldx       #$95
-:keyloop            dex
+                    ldx       #$e0
+:keyloop
+
+                    jsr       CheckKey                ;
+                    bcs       :pauseover              ;SKIP THE REST!
+
+                    dex
                     beq       :pauseover
                     phx
                     jsr       VBlankForce
@@ -339,13 +353,28 @@ Clicky              ldx       #$FE
                     sta       SPEAKER
 :noy                dey
                     dey
+                    dey
+                    dey
+                    dey
+                    lda       #9
+:long               nop
+                    nop
+                    nop
+                    nop
 
+                    nop
+                    nop
+                    dec
+                    bne       :long
                     cpy       #10
                     bcs       :noy
                     dex
                     dex
-                    cpx       #$A0
+                    cpx       #$f0
                     bne       :nox
+                    ldx       #$00
+:wait               inx
+                    bne       :wait
                     rts
 
 MakeUMSound
@@ -386,8 +415,9 @@ MakeUMSound
                     rts
 
 Mesg_Testchars      asc       $1b,'Uu ',"Uu ",$18,'Uu ',"Uu ",00
-Mesg_Ultimate       asc       $18,                    "U l t i m a t e    M i c r o",00
-Mesg_Programmed     asc       $18,                    " Programmed by Dagen Brock",00
+Mesg_Ultimate0      asc       $18,                    "     in association with    ",00
+Mesg_Ultimate1      asc       $18,                    "U l t i m a t e      M i c r o",00
+Mesg_Programmed     asc       $18,                    "  Programmed by Dagen Brock",00
 Intro_WhiteMixText  lda       #" "
                     sta       TXTPAGE1
 
@@ -601,3 +631,4 @@ LoLineTableL        db        <Lo01,<Lo02,<Lo03,<Lo04,<Lo05,<Lo06
                     db        <Lo07,<Lo08,<Lo09,<Lo10,<Lo11,<Lo12
                     db        <Lo13,<Lo14,<Lo15,<Lo16,<Lo17,<Lo18
                     db        <Lo19,<Lo20,<Lo21,<Lo22,<Lo23,<Lo24
+
