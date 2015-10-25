@@ -31,6 +31,8 @@
                            put          applerom
 
 Init
+
+                           jsr          Intro
                            clc
                            xce                                        ;enable full 65816
                            LDA          #$A0                          ;USE A BLANK SPACE TO
@@ -39,7 +41,10 @@ Init
                            lda          $C034                         ; save border color
                            sta          BorderColor
 
+
                            jsr          DetectRam
+                           jsr PrintMemoryMap
+                           jsr RDKEY
                            lda          BankExpansionLowest
                            sta          StartBank
                            lda          BankExpansionHighest
@@ -1286,7 +1291,7 @@ TESTSTATE_WRITE            =            2
 TESTSTATE_BOTH             =            3
 UpdateScanInterval         equ          #$1000
 
-Mesg_Welcome               asc          "Welcome to Mini Memory Tester v0.3 by Dagen Brock",$8D,00
+Mesg_Welcome               asc          "Welcome to Mini Memory Tester v0.4 by Dagen Brock",$8D,00
 Mesg_InternalRam256        asc          "Built-In RAM  256K",00
 Mesg_InternalRam1024       asc          "Built-In RAM  1024K",00
 Mesg_ExpansionRam          asc          "Expansion RAM ",00
@@ -1395,6 +1400,7 @@ PRBIN                      pha
                            plx
                            pla
                            rts
+
 
 Pauser
                            PRINTXY      #55;#13;Mesg_Waiting
@@ -1713,7 +1719,7 @@ _clearstring               asc          "                         ",$00
 
 MainMenuStrs
                            asc          " ______________________________________________________________________________",$8D,$00
-                           asc          $1B,'ZV_@ZVWVWVWV_',"Mini Memory Tester v0.3",'ZVWVWVWVWVWVWVWVWVWVW_',"UltimateMicro",'ZWVWVWVW_',$18,$00
+                           asc          $1B,'ZV_@ZVWVWVWV_',"Mini Memory Tester v0.4",'ZVWVWVWVWVWVWVWVWVWVW_',"UltimateMicro",'ZWVWVWVW_',$18,$00
                            asc          $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,00
                            asc          $1B,'ZZ \GGGGGGGGGGGGG_',"Test  Settings",'ZGGGGGGGGGGGGG\ _'," ",'Z \GGGGGGGG_',"Info",'ZGGGGGGGG\ _'," ",'_',$18,00
                            asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
@@ -1855,6 +1861,29 @@ DetectRam
                            rts
 
 
+PrintMemoryMap
+  jsr CROUT
+
+    ldx #$0
+    ldy #$0
+:loop    lda BankMap,x
+    phy
+    phx
+    jsr PRBYTE
+    lda #" "
+    jsr COUT
+    plx
+    ply
+    iny
+    cpy #16
+    bne :noty
+    jsr CROUT
+    ldy #0
+:noty
+    inx
+    bne :loop
+    rts
+
 
 * Takes address in X/Y and prints out Int stored there
 PrintInt
@@ -1917,4 +1946,3 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
-
