@@ -43,8 +43,9 @@ Init
 
 
                            jsr          DetectRam
-                           jsr          PrintMemoryMap
-                           jsr          RDKEY
+* ENABLE THIS TO SEE WHAT BANKS THE DETECTION ALGORITHM FOUND
+*                           jsr          PrintMemoryMap
+*                           jsr          RDKEY
                            lda          BankExpansionLowest
                            sta          StartBank
                            lda          BankExpansionHighest
@@ -133,6 +134,7 @@ DrawRamMessages
 
 LogWelcomeMessage          jsr          WinConsole
                            LOG          Mesg_Welcome
+                           LOG          Mesg_Promo
                            jsr          WinFull
                            rts
 
@@ -1291,7 +1293,9 @@ TESTSTATE_WRITE            =            2
 TESTSTATE_BOTH             =            3
 UpdateScanInterval         equ          #$1000
 
-Mesg_Welcome               asc          "Welcome to Mini Memory Tester v0.4 by Dagen Brock",$8D,00
+Mesg_Welcome               asc          "Welcome to Mini Memory Tester v0.5 by Dagen Brock",$8D,00
+Mesg_Promo                 asc          "  Go to www.ultimateapple2.com to buy memory expansion cards",$8D
+                           asc          "  and other upgrades for your Apple II!",$8D,00
 Mesg_InternalRam256        asc          "Built-In RAM  256K",00
 Mesg_InternalRam1024       asc          "Built-In RAM  1024K",00
 Mesg_ExpansionRam          asc          "Expansion RAM ",00
@@ -1719,7 +1723,7 @@ _clearstring               asc          "                         ",$00
 
 MainMenuStrs
                            asc          " ______________________________________________________________________________",$8D,$00
-                           asc          $1B,'ZV_@ZVWVWVWV_',"Mini Memory Tester v0.4",'ZVWVWVWVWVWVWVWVWVWVW_',"UltimateMicro",'ZWVWVWVW_',$18,$00
+                           asc          $1B,'ZV_@ZVWVWVWV_',"Mini Memory Tester v0.5",'ZVWVWVWVWVWVWVWVWVWVW_',"UltimateMicro",'ZWVWVWVW_',$18,$00
                            asc          $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,00
                            asc          $1B,'ZZ \GGGGGGGGGGGGG_',"Test  Settings",'ZGGGGGGGGGGGGG\ _'," ",'Z \GGGGGGGG_',"Info",'ZGGGGGGGG\ _'," ",'_',$18,00
                            asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
@@ -1961,3 +1965,5 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
+
+
