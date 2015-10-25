@@ -1,13 +1,15 @@
 
-MenuCheckKeyColor                                     ;jsr   ColorizeMenu
-                    lda       #55
-                    jsr       WaitSCB
-                    lda       #80
-                    jsr       WaitSCB
-                    lda       #55
-                    jsr       WaitSCB
-                    lda       #80
-                    jsr       WaitSCB
+MenuCheckKeyColor   jsr       ColorizeMenu
+
+*                    lda       #55
+*                    jsr       WaitSCB
+*                    lda       #80
+*                    jsr       WaitSCB
+*                    lda       #55
+*                    jsr       WaitSCB
+*                    lda       #80
+*                    jsr       WaitSCB
+
                     lda       _ticker
                     bne       :skipDraw               ; we want to avoid updating when nothing is happening... "Save the Cycles!!" ;)
                     jsr       Menu_HighlightSelected
@@ -175,14 +177,14 @@ ColorizeMenuOld
                     rts
 
 VBlankForce
-:vbl            ldal $00c019
-                  bmi :vbl
-                  jmp VBlank
-                  rts
+:vbl                ldal      $00c019
+                    bmi       :vbl
+                    jmp       VBlank
+                    rts
 VBlank
-:vbl            ldal $00c019
-                  bpl :vbl
-                  rts
+:vbl                ldal      $00c019
+                    bpl       :vbl
+                    rts
 
 WaitSCB             sta       :val+1
                     ldx       #2                      ; to check twice
@@ -301,7 +303,7 @@ Intro               lda       #$f5                    ;gray
                     bcc       :invisible
                     jsr       Clicky
 :invisible
-                    jsr      VBlankForce
+                    jsr       VBlankForce
 
 
 
@@ -329,20 +331,20 @@ Intro               lda       #$f5                    ;gray
 
 Clicky              ldx       #$FE
 :nox                txy
-  nop
-  nop
-  nop
-  nop
+                    nop
+                    nop
+                    nop
+                    nop
 
                     sta       SPEAKER
 :noy                dey
-        dey
+                    dey
 
-        cpy #10
+                    cpy       #10
                     bcs       :noy
                     dex
                     dex
-                    cpx #$A0
+                    cpx       #$A0
                     bne       :nox
                     rts
 
