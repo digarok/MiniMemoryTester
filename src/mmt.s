@@ -1872,10 +1872,10 @@ DetectRam
                            bne          :notrom3
 :rom3                      lda          #1024
                            sta          BankBuiltInRamKB
-                           rts
+                           bra          :exit
 :notrom3                   lda          #256
                            sta          BankBuiltInRamKB
-                           sep          #$30
+:exit                      sep          #$30
 
                            rts
 
