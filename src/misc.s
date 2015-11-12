@@ -343,6 +343,52 @@ Intro               lda       #$f5                    ;gray
                     sta       $c022
                     rts
 
+MAXGAP              =         #800
+MAXLEN              =         #300
+ErrorNoise
+                    clc
+                    xce
+                    rep       #$10
+                    ldx       #0
+                    stx       _shiftingGap2
+
+                    ldx       #MAXGAP
+                    stx       _shiftingGap
+:loop
+                    sta       SPEAKER
+
+                    ldx       _shiftingGap
+:pause1             dex
+                    bne       :pause1
+
+                    sta       SPEAKER
+
+                    ldx       _shiftingGap2
+:pause2             dex
+                    bne       :pause2
+
+
+                    ldx       _shiftingGap
+                    dex
+                    beq       :done
+                    stx       _shiftingGap
+
+                    ldx       _shiftingGap2
+                    inx
+                    cpx       #MAXLEN
+                    beq       :done
+                    stx       _shiftingGap2
+                    bra       :loop
+
+:done               sec
+                    xce
+                    sep       #$30
+                    rts
+
+
+_shiftingGap        dw        0
+_shiftingGap2       dw        0
+
 Clicky              ldx       #$FE
 :nox                txy
                     nop
@@ -356,17 +402,21 @@ Clicky              ldx       #$FE
                     dey
                     dey
                     dey
-                    lda       #9
+                    lda       #2
 :long               nop
                     nop
                     nop
                     nop
-
+                    nop
+                    nop
+                    nop
+                    nop
+                    nop
                     nop
                     nop
                     dec
                     bne       :long
-                    cpy       #10
+                    cpy       #5
                     bcs       :noy
                     dex
                     dex

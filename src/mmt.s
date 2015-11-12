@@ -42,6 +42,7 @@ Init
                            lda          $C034                         ; save border color
                            sta          BorderColor
                            jsr          DetectRam
+
 * ENABLE THIS TO SEE WHAT BANKS THE DETECTION ALGORITHM FOUND
 *                           jsr          PrintMemoryMap
 *                           jsr          RDKEY
@@ -54,7 +55,7 @@ Init
                            lda          #MainMenuDefs
                            ldx          #>MainMenuDefs
                            jsr          Menu_InitMenu
-                          
+
 * Main Menu loop begin2
 *
 Main
@@ -95,11 +96,11 @@ Main
                            bra          :menuNoDrawLoop
 *
 * Main Menu loop end ^^^
-*
 
 
 
 
+* Prints all the mousetext background
 DrawMenuBackground         jsr          HOME
                            lda          #MainMenuStrs
                            ldy          #>MainMenuStrs
@@ -169,7 +170,7 @@ LogTestDone                jsr          WinConsole
 *
 *
 TestInit
-                           PRINTXY      #$34;#$E;_clearstring
+                           PRINTXY      #$34;#$E;_clearstring         ;clear something on screen?
                            jsr          WinConsole
                            LOG          Mesg_Starting
                            jsr          WinFull
@@ -322,6 +323,16 @@ TestPrintErrors            PushAll
                            PopAll
                            rts
 
+* Makes alert noise when enabled, otherwise immediately returns
+TestNoiseError             lda          TestErrorSound
+                           beq          :nonoise
+                           jsr          ErrorNoise
+                           jsr          ErrorNoise
+                           jsr          ErrorNoise
+
+
+:nonoise                   rts
+
 * Pauses on test error (when enabled, otherwise immediately returns)
 TestPauseError             lda          TestErrorPause                ;is this option enabled?
                            beq          :no
@@ -329,7 +340,7 @@ TestPauseError             lda          TestErrorPause                ;is this o
                            sep          #$10
                            PRINTXY      #55;#14;Mesg_TestError1       ;draw messages
                            PRINTXY      #55;#15;Mesg_TestError2
-
+                           sta          $C010
 :pause                     lda          $C000                         ;wait for key
                            bpl          :pause
                            sta          $C010
@@ -661,6 +672,7 @@ BANKPATCH11                =            *-1
                            rts
 :readerror                 jsr          TestLogError
                            jsr          TestPrintErrors
+                           jsr          TestNoiseError
                            jsr          TestPauseError
                            rts
 
@@ -779,6 +791,7 @@ BANKPATCH13                =            *-1
 :readerror                 sep          $20
                            jsr          TestLogError
                            jsr          TestPrintErrors
+                           jsr          TestNoiseError
                            jsr          TestPauseError
                            rts
 
@@ -877,6 +890,7 @@ BANKPATCH04                =            *-1
                            rts
 :readerror                 jsr          TestLogError
                            jsr          TestPrintErrors
+                           jsr          TestNoiseError
                            jsr          TestPauseError
                            rts
 
@@ -1047,6 +1061,7 @@ BANKPATCH08                =            *-1
 _readerror16               sep          #$20
                            jsr          TestLogError
                            jsr          TestPrintErrors
+                           jsr          TestNoiseError
                            jsr          TestPauseError
                            clc
                            xce
@@ -1273,6 +1288,7 @@ CORRUPTOR                  lda          $C000
                                                                       ;lda          #$55
                            stal         $020000,x
 BANKPATCHXX                =            *-1
+                           sta          $C010                         ; clear it or we can't test WaitOnError
 _nokey                     nop
                            rts
                            mx           %11
@@ -1578,6 +1594,7 @@ TestReadRepeat             dw           #$01                          ; int
 TestWriteRepeat            dw           #$01                          ; int
 TestIterations             dw           #$00                          ; int
 TestErrorPause             dw           #0                            ;bool
+TestErrorSound             dw           #0                            ;bool
 
 
 
@@ -1622,10 +1639,14 @@ _hexpatternsize            db           02                            ; max len 
                            db           Menu_TypeBin                  ; 5?=bin
 _binpatternsize            db           02                            ; max len size (bytes), 3=option list <- can change when 8 bit??
                            da           HexPattern                    ; params definition & storage <- uses same space as above!! just different representation
-:Direction                 hex          12,0B
+:Direction                 hex          12,0A
                            db           Menu_TypeList
                            db           2
                            da           TestDirectionTbl
+:TestErrorSound            hex          12,0B                         ; x,y
+                           db           Menu_TypeBool                 ; 1=hex input
+                           db           2                             ; could be 8-bit or 16-bit bool
+                           da           TestErrorSound                ; variable storage
 :TestErrorPause            hex          28,0B                         ; x,y
                            db           Menu_TypeBool                 ; 1=hex input
                            db           2                             ; could be 8-bit or 16-bit bool
@@ -1731,8 +1752,8 @@ MainMenuStrs
                            asc          $1B,'ZZ',"  Test Type         :                         ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                            asc          $1B,'ZZ',"       Hex Pattern  :                         ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                            asc          $1B,'ZZ',"       Bin Pattern  :                         ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
-                           asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
-                           asc          $1B,'ZZ',"  Direction            Wait on Error          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                           asc          $1B,'ZZ',"  Direction                                   ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                           asc          $1B,'ZZ',"  Error Sound          Wait on Error          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                            asc          $1B,'ZZ',"  Adjacent Wr.         Two-Pass W/R           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                            asc          $1B,'ZZ',"  Read Repeat          Write Repeat           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                            asc          $1B,'ZZ',"  Iterations           Refresh Pause          ",'_'," ",'Z',"     ([ BEGIN TEST ])     ",'_'," ",'_',$18,00
@@ -1964,3 +1985,4 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
+
