@@ -61,62 +61,46 @@ MiniWait            nop
                     mx        %11
 ColorizeMenu
                     lda       #6
+                    ldx       #$A0                    ; green
                     jsr       WaitScanline
-                    lda       #$A0                    ; green
-                    sta       $c022
-                    jsr       MiniWait
 
                     lda       #7
+                    ldx       #$c0                    ; green
                     jsr       WaitScanline
-                    lda       #$c0                    ; green
-                    sta       $c022
-                    jsr       MiniWait
 
                     lda       #9
+                    ldx       #$d0                    ; yello
                     jsr       WaitScanline
-                    lda       #$d0                    ; yello
-                    sta       $c022
-                    jsr       MiniWait
 
                     lda       #10
+                    ldx       #$90                    ; orange
                     jsr       WaitScanline
-                    lda       #$90                    ; orange
-                    sta       $c022
-                    jsr       MiniWait
-
 
                     lda       #11
+                    ldx       #$10                    ; red
                     jsr       WaitScanline
-                    lda       #$10                    ; red
-                    sta       $c022
-                    jsr       MiniWait
 
                     lda       #12
+                    ldx       #$30                    ; purple
                     jsr       WaitScanline
-                    lda       #$30                    ; purple
-                    sta       $c022
-                    jsr       MiniWait
+
 
                     lda       #13
+                    ldx       #$70                    ; bblue
                     jsr       WaitScanline
-                    lda       #$70                    ; bblue
-                    sta       $c022
-                    jsr       MiniWait
+
 
                     lda       #15
+                    ldx       #$50                    ; grey
                     jsr       WaitScanline
-                    lda       #$50                    ; grey
-                    sta       $c022
-                    jsr       MiniWait
 
                     lda       #16
+                    ldx       #$f0                    ; white
                     jsr       WaitScanline
-                    lda       #$f0                    ; white
-                    sta       $c022
                     rts
 
-
-WaitScanline        jmp       WaitSCB
+* now stores x immediately
+WaitScanline        ;jmp       WaitSCB
                     sta       :val+1
 
 :waitloop           lda       $c02f
@@ -125,6 +109,7 @@ WaitScanline        jmp       WaitSCB
                     rol
 :val                cmp       #$00
                     bne       :waitloop
+                    stx $c022
                     rts
 
 ColorizeMenuOld
@@ -681,4 +666,3 @@ LoLineTableL        db        <Lo01,<Lo02,<Lo03,<Lo04,<Lo05,<Lo06
                     db        <Lo07,<Lo08,<Lo09,<Lo10,<Lo11,<Lo12
                     db        <Lo13,<Lo14,<Lo15,<Lo16,<Lo17,<Lo18
                     db        <Lo19,<Lo20,<Lo21,<Lo22,<Lo23,<Lo24
-
