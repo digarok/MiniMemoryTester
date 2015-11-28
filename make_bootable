@@ -1,30 +1,25 @@
 #!/bin/bash
 
+# SET THESE TOOLS UP ON YOUR SYSTEM AND UPDATE THE PATHS HERE TO BUILD
+CADIUS="../tools/Cadius"
+MERLIN="../tools/Merlin32_v1.0/MacOSX/Merlin32"
+
 # Here's our fancy build pipeline.  Output = src/mtsystem (binary file)
-./Merlin32 -V . src/mmt.s
+$MERLIN -V . src/mmt.s
 
-
-# name of your disk image
-DISK="MT"
 # whatever the build produces
-OUTFILE="src/mtsystem"
-
-# set one of the following to true
-USE_CADIUS=true
-USE_APPLECOMMANDER=false
-
+OUTFILE="src/mmtsystem"
 if [ ! -f $OUTFILE ]; then
+  echo "Can't find $OUTFILE.  Check assembler output."
   exit 1
 fi
-
-mv $OUTFILE src/mt.system
+mv $OUTFILE src/mmt.system
 
 SRCFILES=(`ls src/*.s`)
+DOCFILES=(`ls docs/*.txt`)
 SYSFILES=(`ls src/PRODOS src/*system`)
-CADIUS="../tools/Cadius"
-P8NAME="$DISK"
-IMGNAME="$DISK.po"
-DISKSIZE=800KB
+
+DISK="MMT"      # base name of disk image
 SRCDIR=src
 BLDDIR=build/nix
 
@@ -36,9 +31,17 @@ if [ ! -d $BLDDIR ] ; then
 fi
 
 # need to autogen
-#cp src/_FileInformation.txt $BLDDIR
+cp src/_FileInformation.txt $BLDDIR
 
-$CADIUS createvolume $IMGNAME $P8NAME $DISKSIZE
+$CADIUS createvolume ${DISK}800.2mg ${DISK}800 800KB >/dev/null
+$CADIUS createvolume ${DISK}800.po ${DISK}800 800KB >/dev/null
+$CADIUS createvolume ${DISK}140.po ${DISK}140 140KB >/dev/null
+$CADIUS createfolder ${DISK}800.2mg /${DISK}800/src
+$CADIUS createfolder ${DISK}800.po /${DISK}800/src
+$CADIUS createfolder ${DISK}140.po /${DISK}140/src
+$CADIUS createfolder ${DISK}800.2mg /${DISK}800/doc
+$CADIUS createfolder ${DISK}800.po /${DISK}800/doc
+$CADIUS createfolder ${DISK}140.po /${DISK}140/doc
 
 #SOURCE FILES
 for f in ${SRCFILES[@]};
@@ -48,10 +51,22 @@ do
   cp $f $BLDDIR/$FNAME
   $CADIUS sethighbit $BLDDIR/$FNAME > /dev/null
   # add -V to debug
-  $CADIUS addfile $IMGNAME /$P8NAME/ $BLDDIR/$FNAME >/dev/null
-
+  $CADIUS addfile ${DISK}800.2mg /${DISK}800/src $BLDDIR/$FNAME >/dev/null
+  $CADIUS addfile ${DISK}800.po /${DISK}800/src $BLDDIR/$FNAME >/dev/null
+  $CADIUS addfile ${DISK}140.po /${DISK}140/src $BLDDIR/$FNAME >/dev/null
 done
 
+#DOC FILES
+for f in ${DOCFILES[@]};
+do
+  FNAME=${f##*/}
+  echo Processing $FNAME
+  cp $f $BLDDIR/$FNAME
+  # add -V to debug
+  $CADIUS addfile ${DISK}800.2mg /${DISK}800/doc $BLDDIR/$FNAME >/dev/null
+  $CADIUS addfile ${DISK}800.po /${DISK}800/doc $BLDDIR/$FNAME >/dev/null
+  $CADIUS addfile ${DISK}140.po /${DISK}140/doc $BLDDIR/$FNAME >/dev/null
+done
 
 #SYSTEM FILES
 for f in ${SYSFILES[@]};
@@ -59,9 +74,9 @@ do
   FNAME=${f##*/}
   echo Processing $FNAME
   cp $f $BLDDIR/$FNAME
-  $CADIUS addfile $IMGNAME /$P8NAME/ $BLDDIR/$FNAME > /dev/null
+  $CADIUS addfile ${DISK}800.2mg /${DISK}800/ $BLDDIR/$FNAME >/dev/null
+  $CADIUS addfile ${DISK}800.po /${DISK}800/ $BLDDIR/$FNAME >/dev/null
+  $CADIUS addfile ${DISK}140.po /${DISK}140/ $BLDDIR/$FNAME >/dev/null
 done
 
 
-
-exit
