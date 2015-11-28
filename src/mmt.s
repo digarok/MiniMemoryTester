@@ -27,7 +27,7 @@
 
                            org          $2000                         ; start at $2000 (all ProDOS8 system files)
                            typ          $ff                           ; set P8 type ($ff = "SYS") for output file
-                           dsk          mtsystem                      ; tell compiler what name for output file
+                           dsk          mmtsystem                      ; tell compiler what name for output file
                            put          applerom
 
 Init
@@ -65,6 +65,7 @@ Main
 
                            jsr          LogWelcomeMessage
                            jsr          LogRamMessages
+                           jsr          LogPromoMessage
 
 :menuDrawOptionsLoop       jsr          MenuUpdateConfig              ;always update this before draw in case of change
                            lda          #MainMenuDefs
@@ -134,10 +135,13 @@ DrawRamMessages
 
 LogWelcomeMessage          jsr          WinConsole
                            LOG          Mesg_Welcome
-                           LOG          Mesg_Promo
                            jsr          WinFull
                            rts
 
+LogPromoMessage            jsr          WinConsole
+                           LOG          Mesg_Promo
+                           jsr          WinFull
+                           rts
 LogRamMessages             jsr          WinConsole
                            LOG          Mesg_DetectedBanks
 
@@ -148,6 +152,7 @@ LogRamMessages             jsr          WinConsole
                            jsr          PrintString
                            lda          BankExpansionHighest
                            jsr          PRBYTE
+                           jsr CROUT
                            jsr          WinFull
                            rts
 LogTestDone                jsr          WinConsole
@@ -1282,8 +1287,8 @@ TestPatchBanks             lda          CurBank
 
 CORRUPTOR                  lda          $C000
                            bpl          _nokey
+	       and          #11101111
                            cmp          #"c"
-                           bne          _nokey
                            jsr          GetRandTrash                  ;careful... this is 8-bit code.  make sure M=1
                                                                       ;lda          #$55
                            stal         $020000,x
@@ -1308,9 +1313,9 @@ TESTSTATE_WRITE            =            2
 TESTSTATE_BOTH             =            3
 UpdateScanInterval         equ          #$1000
 
-Mesg_Welcome               asc          "Mini Memory Tester v0.6  - Copyright (c) 2015 by Dagen Brock",$8D,00
-Mesg_Promo                 asc          "  Check www.ultimateapple2.com to buy memory expansion",$8D
-                           asc          "  cards and other upgrades for your Apple II!",$8D,00
+Mesg_Welcome               asc          "Mini Memory Tester v1.0  - Copyright (c) 2015 by Dagen Brock",00
+Mesg_Promo                 asc          "  Go to www.ultimateapple2.com for RAM cards and more for your Apple II!",$8D,$8D
+                           asc          "  Latest versions of this program at github.com/digarok/mmt",00
 Mesg_InternalRam256        asc          "Built-In RAM  256K",00
 Mesg_InternalRam1024       asc          "Built-In RAM  1024K",00
 Mesg_ExpansionRam          asc          "Expansion RAM ",00
@@ -1639,7 +1644,7 @@ _hexpatternsize            db           02                            ; max len 
                            db           Menu_TypeBin                  ; 5?=bin
 _binpatternsize            db           02                            ; max len size (bytes), 3=option list <- can change when 8 bit??
                            da           HexPattern                    ; params definition & storage <- uses same space as above!! just different representation
-:Direction                 hex          12,0A
+:Direction                 hex          19,0A
                            db           Menu_TypeList
                            db           2
                            da           TestDirectionTbl
@@ -1743,7 +1748,7 @@ _clearstring               asc          "                         ",$00
 
 MainMenuStrs
                            asc          " ______________________________________________________________________________",$8D,$00
-                           asc          $1B,'ZV_@ZVWVWVWV_',"Mini Memory Tester v0.6",'ZVWVWVWVWVWVWVWVWVWVW_',"UltimateMicro",'ZWVWVWVW_',$18,$00
+                           asc          $1B,'ZV_@ZVWVWVWV_',"Mini Memory Tester v1.0",'ZVWVWVWVWVWVWVWVWVWVW_',"UltimateMicro",'ZWVWVWVW_',$18,$00
                            asc          $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,00
                            asc          $1B,'ZZ \GGGGGGGGGGGGG_',"Test  Settings",'ZGGGGGGGGGGGGG\ _'," ",'Z \GGGGGGGG_',"Info",'ZGGGGGGGG\ _'," ",'_',$18,00
                            asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
@@ -1752,7 +1757,7 @@ MainMenuStrs
                            asc          $1B,'ZZ',"  Test Type         :                         ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                            asc          $1B,'ZZ',"       Hex Pattern  :                         ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                            asc          $1B,'ZZ',"       Bin Pattern  :                         ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
-                           asc          $1B,'ZZ',"  Direction                                   ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
+                           asc          $1B,'ZZ',"  Test Direction    :                         ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                            asc          $1B,'ZZ',"  Error Sound          Wait on Error          ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                            asc          $1B,'ZZ',"  Adjacent Wr.         Two-Pass W/R           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
                            asc          $1B,'ZZ',"  Read Repeat          Write Repeat           ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00
@@ -1985,4 +1990,3 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
-
