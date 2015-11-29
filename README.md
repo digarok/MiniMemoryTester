@@ -1,12 +1,9 @@
 MiniMemoryTester
 
-This started out as a simple assembly loop to test memory locations, but as more and more configuration options were added, it all had to be rewritten in a more generalized way.  This tester sacrifices a good amount of speed for configurability. Still, there are lots of places where the code could be greatly sped up.
-
-Build with Merlin32, boot from ProDOS.   
-
-
 # mmt
 A program designed to exhaustively test expansion memory on an Apple IIGS.
+
+![Boot up and running a quick test](docs/minimemorytester.gif "Boot up and running a quick test")
 
 # Usage
 There is a full manual here  http://goo.gl/NiKJTH
