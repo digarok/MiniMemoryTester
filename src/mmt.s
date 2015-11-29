@@ -27,7 +27,7 @@
 
                            org          $2000                         ; start at $2000 (all ProDOS8 system files)
                            typ          $ff                           ; set P8 type ($ff = "SYS") for output file
-                           dsk          mmtsystem                      ; tell compiler what name for output file
+                           dsk          mmtsystem                     ; tell compiler what name for output file
                            put          applerom
 
 Init
@@ -152,7 +152,7 @@ LogRamMessages             jsr          WinConsole
                            jsr          PrintString
                            lda          BankExpansionHighest
                            jsr          PRBYTE
-                           jsr CROUT
+                           jsr          CROUT
                            jsr          WinFull
                            rts
 LogTestDone                jsr          WinConsole
@@ -1287,7 +1287,7 @@ TestPatchBanks             lda          CurBank
 
 CORRUPTOR                  lda          $C000
                            bpl          _nokey
-	       and          #11101111
+                           and          #11101111
                            cmp          #"c"
                            jsr          GetRandTrash                  ;careful... this is 8-bit code.  make sure M=1
                                                                       ;lda          #$55
@@ -1990,3 +1990,4 @@ BankExpansionHighest       ds           1
 BankMap                    ds           256                           ;page-align maps just to make them easier to see
 _stash                     ds           256
                            ds           \
+

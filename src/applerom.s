@@ -5,17 +5,17 @@
 * APPLESOFT
 CH           equ   $24
 CV           equ   $25
-HCOLOR	equ $E4	;HCOLOR value
-SETHCOL equ $F6EC ;Set active HCOLOR to value of X (0 ... 7)
-HPLOT equ	$F457	;Plots a colored dor at the position
-		; given by A (vertical), Y (horizontal high), 
-		; and X (horizontal low)
-HLIN equ	$F53A	;Draws a line from the last plotted dot to the
-		; position given by Y (vertical), X (horizontal high),
-		; and A (horizontal low)
+HCOLOR       equ   $E4         ;HCOLOR value
+SETHCOL      equ   $F6EC       ;Set active HCOLOR to value of X (0 ... 7)
+HPLOT        equ   $F457       ;Plots a colored dor at the position
+                               ; given by A (vertical), Y (horizontal high), 
+                               ; and X (horizontal low)
+HLIN         equ   $F53A       ;Draws a line from the last plotted dot to the
+                               ; position given by Y (vertical), X (horizontal high),
+                               ; and A (horizontal low)
 CLRLORES     equ   $F832
 CLRHIRES     equ   $F3F2
-CLRHIRESC    equ   $F3F6	;clears to last color plotted
+CLRHIRESC    equ   $F3F6       ;clears to last color plotted
 
 
 
@@ -23,7 +23,7 @@ CLR80VID     equ   $C00C
 SET80VID     equ   $C00D
 CLR80COL     equ   $C001
 SET80COL     equ   $C001
-TXTCLR       equ $C050
+TXTCLR       equ   $C050
 TXTSET       equ   $C051
 MIXCLR       equ   $C052
 MIXSET       equ   $C053
@@ -43,7 +43,7 @@ RDVBLBAR     equ   $C019       ;not VBL (VBL signal low
 RAMWRTAUX    equ   $C005
 RAMWRTMAIN   equ   $C004
 CLRAN3       equ   $C05E       ;Clear annunciator-3 output  (DLR on)	 (Mislabeled in IIgs Firmare Ref?)
-SETAN3	equ $C05F  ;Set annunciator-3 output
+SETAN3       equ   $C05F       ;Set annunciator-3 output
 
 
 COUT         equ   $FDED       ; Calls the output routine whose address is stored in CSW,
@@ -106,28 +106,29 @@ MLI          equ   $BF00
 *************************************
 * LORES / DOUBLE LORES / TEXT LINES *
 *************************************
-Lo01                 equ   $400
-Lo02                 equ   $480
-Lo03                 equ   $500
-Lo04                 equ   $580
-Lo05                 equ   $600
-Lo06                 equ   $680
-Lo07                 equ   $700
-Lo08                 equ   $780
-Lo09                 equ   $428
-Lo10                 equ   $4a8
-Lo11                 equ   $528
-Lo12                 equ   $5a8
-Lo13                 equ   $628
-Lo14                 equ   $6a8
-Lo15                 equ   $728
-Lo16                 equ   $7a8
-Lo17                 equ   $450
-Lo18                 equ   $4d0
-Lo19                 equ   $550
-Lo20                 equ   $5d0
+Lo01         equ   $400
+Lo02         equ   $480
+Lo03         equ   $500
+Lo04         equ   $580
+Lo05         equ   $600
+Lo06         equ   $680
+Lo07         equ   $700
+Lo08         equ   $780
+Lo09         equ   $428
+Lo10         equ   $4a8
+Lo11         equ   $528
+Lo12         equ   $5a8
+Lo13         equ   $628
+Lo14         equ   $6a8
+Lo15         equ   $728
+Lo16         equ   $7a8
+Lo17         equ   $450
+Lo18         equ   $4d0
+Lo19         equ   $550
+Lo20         equ   $5d0
 * the "plus four" lines
-Lo21                 equ   $650
-Lo22                 equ   $6d0
-Lo23                 equ   $750
-Lo24                 equ   $7d0
+Lo21         equ   $650
+Lo22         equ   $6d0
+Lo23         equ   $750
+Lo24         equ   $7d0
+

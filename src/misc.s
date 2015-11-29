@@ -100,7 +100,7 @@ ColorizeMenu
                     rts
 
 * now stores x immediately
-WaitScanline        ;jmp       WaitSCB
+WaitScanline                                          ;jmp       WaitSCB
                     sta       :val+1
 
 :waitloop           lda       $c02f
@@ -109,7 +109,7 @@ WaitScanline        ;jmp       WaitSCB
                     rol
 :val                cmp       #$00
                     bne       :waitloop
-                    stx $c022
+                    stx       $c022
                     rts
 
 ColorizeMenuOld
@@ -666,3 +666,4 @@ LoLineTableL        db        <Lo01,<Lo02,<Lo03,<Lo04,<Lo05,<Lo06
                     db        <Lo07,<Lo08,<Lo09,<Lo10,<Lo11,<Lo12
                     db        <Lo13,<Lo14,<Lo15,<Lo16,<Lo17,<Lo18
                     db        <Lo19,<Lo20,<Lo21,<Lo22,<Lo23,<Lo24
+
