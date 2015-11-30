@@ -10,9 +10,11 @@ There is a full manual here  http://goo.gl/NiKJTH
 
 If you just want the program, the latest disk images are
 
-    MMT800.2mg
-    MMT800.po
-    MMT140.po
+   [MMT800.2mg](https://github.com/digarok/mmt/blob/master/MMT800.2mg "MMT800.2mg")
+   
+   [MMT800.po](https://github.com/digarok/mmt/blob/master/MMT800.po "MMT800.po")
+   
+   [MMT140.po](https://github.com/digarok/mmt/blob/master/MMT140.po "MMT140.po")
 
 You can transfer those to a 3.5" or 5.25" disk using ADT Pro or if you have a SD based storage system, it should run fine from there.  
 
