@@ -1786,7 +1786,6 @@ DetectRam
                            lda          #BankROMUsed
                            sta          BankMap+$FE                   ;bank FE
                            sta          BankMap+$FF                   ;bank FF
-
                            lda          GSROM
                            cmp          #3                            ;check for ROM3 IIgs
                            bne          :rom0or1
@@ -1799,15 +1798,15 @@ DetectRam
                            lda          #BankROMUsed                  ;ROM 3 is 256KB, so 4 banks (2 additional)
                            sta          BankMap+$FC                   ;
                            sta          BankMap+$FD                   ;
-                           ldx          #$10                          ;ROM3 starts scan at bank 10
+                           ldx          #$FB                          ;ROM3 starts scan at bank FC
                            txy
                            bra          :writeloop
 
 :rom0or1                                                              ;no additional mappings
-                           lda          #$FE                          ;ROM1 end bank FE
-                           sta          :endbankscan+1                ;but change our max scan bank
-                           sta          :endbankscan2+1               ;but change our max scan bank
-                           ldx          #$02                          ;ROM0/1 starts scan at bank 02
+                           lda          #$02                          ;ROM1 end bank FE
+                           sta          :endbankscan+1                ;but change our min scan bank
+                           sta          :endbankscan2+1               ;but change our min scan bank
+                           ldx          #$FE                          ;ROM0/1 starts scan at bank FE
                            txy
 
 
@@ -1816,12 +1815,12 @@ DetectRam
 
                            eor          #$FF                          ;INVERT
 :writer                    stal         $000000                       ;should overwrite first byte
-                           inx
-                           cpx          #$E0
+                           dex
+                           cpx          #$EF
                            bne          :endbankscan
-                           ldx          #$F0                          ;skip to bank F0 (skip banks E0-EF)
-:endbankscan               cpx          #$FC                          ;ROM3 end bank (default)
-                           bcc          :writeloop                    ;blt
+                           ldx          #$DF                          ;skip to bank DF (skip banks E0-EF)
+:endbankscan               cpx          #$10                          ;ROM3 end bank (default)
+                           bcs          :writeloop                    ;blt
 
 
                            tyx                                        ;restore start bank
@@ -1835,13 +1834,13 @@ DetectRam
                            inc          BankExpansionRam              ;TotalMB++
                            lda          #BankRAMFastExpansion         ;store mapping
                            sta          BankMap,x
-:continue                  inx
-                           cpx          #$E0
+:continue                  dex
+                           cpx          #$EF
                            bne          :endbankscan2
-                           ldx          #$F0                          ;skip to bank F0 (skip banks E0-EF)
+                           ldx          #$DF                          ;skip to bank F0 (skip banks E0-EF)
 
-:endbankscan2              cpx          #$FC                          ;ROM3 end bank (default)
-                           bcc          :detectloopread               ;blt
+:endbankscan2              cpx          #$10                          ;ROM3 end bank (default)
+                           bcs          :detectloopread               ;blt
 
 
 
