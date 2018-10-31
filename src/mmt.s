@@ -1590,7 +1590,7 @@ EndBank                    db           #$1F
 CurBank                    db           #0
 StartAddr                  dw           #$0000
 EndAddr                    dw           #$FFFF
-HexPattern                 dw           #$0000
+HexPattern                 dw           #$CDAB
 
 TestTwoPass                dw           #0                            ; bool is byte, but might change in future? :P
 TestAdjacentWrite          dw           #0                            ; bool is byte, but might change in future? :P

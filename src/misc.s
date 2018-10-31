@@ -1,15 +1,6 @@
 
 MenuCheckKeyColor   jsr       ColorizeMenu
 
-*                    lda       #55
-*                    jsr       WaitSCB
-*                    lda       #80
-*                    jsr       WaitSCB
-*                    lda       #55
-*                    jsr       WaitSCB
-*                    lda       #80
-*                    jsr       WaitSCB
-
                     lda       _ticker
                     bne       :skipDraw               ; we want to avoid updating when nothing is happening... "Save the Cycles!!" ;)
                     jsr       Menu_HighlightSelected
@@ -40,23 +31,6 @@ ToLower             cmp       #"Z"
                     adc       #$20                    ;add 32 to get lower char
 :notUpper           rts
 
-
-WaitKey
-:kloop
-                    jsr       ColorizeMenu
-                    lda       KEY
-                    bpl       :kloop
-                    sta       STROBE
-                    cmp       #"b"                    ; REMOVE DEBUG
-                    bne       :nobreak
-                    brk       $75
-:nobreak
-                    rts
-MiniWait            nop
-                    nop
-                    nop
-                    nop
-                    rts
 
                     mx        %11
 ColorizeMenu
@@ -111,7 +85,7 @@ ColorizeMenu
                     rts
 
 * now stores x immediately
-WaitScanline                                          ;jmp       WaitSCB
+WaitScanline
                     sta       :val+1
 
 :waitloop           ldal      $e0c02f
@@ -121,55 +95,6 @@ WaitScanline                                          ;jmp       WaitSCB
 :val                cmp       #$00
                     bne       :waitloop
                     stx       $c022
-                    rts
-
-ColorizeMenuOld
-:loop
-                    lda       #6
-                    jsr       WaitSCB
-                    lda       #$A0                    ; green
-                    sta       $c022
-
-                    lda       #7
-                    jsr       WaitSCB
-                    lda       #$c0                    ; green
-                    sta       $c022
-
-                    lda       #9
-                    jsr       WaitSCB
-                    lda       #$d0                    ; yello
-                    sta       $c022
-
-                    lda       #10
-                    jsr       WaitSCB
-                    lda       #$90                    ; orange
-                    sta       $c022
-
-
-                    lda       #11
-                    jsr       WaitSCB
-                    lda       #$10                    ; red
-                    sta       $c022
-
-                    lda       #12
-                    jsr       WaitSCB
-                    lda       #$30                    ; purple
-                    sta       $c022
-
-                    lda       #13
-                    jsr       WaitSCB
-                    lda       #$70                    ; bblue
-                    sta       $c022
-
-                    lda       #15
-                    jsr       WaitSCB
-                    lda       #$50                    ; grey
-                    sta       $c022
-
-                    lda       #16
-                    jsr       WaitSCB
-                    lda       #$f0                    ; white
-                    sta       $c022
                     rts
 
 VBlankForce
@@ -314,7 +239,7 @@ Intro               lda       #$f5                    ;gray
 :invisible
                     jsr       VBlankForce
                     plx
-                    
+
                     jsr       CheckKey                ;
                     bcs       :pauseover              ;SKIP THE REST!
 
@@ -466,10 +391,11 @@ MakeUMSound
                     bne       :first
                     rts
 
-Mesg_Testchars      asc       $1b,'Uu ',"Uu ",$18,'Uu ',"Uu ",00
+*Mesg_Testchars      asc       $1b,'Uu ',"Uu ",$18,'Uu ',"Uu ",00
 Mesg_Ultimate0      asc       $18,                    "an Apple IIgs",00
 Mesg_Ultimate1      asc       $18,                    "Memory Expansion (RAM) Card Test Utility",00
 Mesg_Programmed     asc       $18,                    " Programmed by Dagen Brock",00
+
 Intro_WhiteMixText  lda       #" "
                     sta       TXTPAGE1
 
@@ -486,16 +412,14 @@ Intro_WhiteMixText  lda       #" "
                     dey
                     bne       :pageloop
                     rts
-* To allow us to uncompress to 80col text before turning on DLR (I hope)
 
+* To allow us to uncompress to 80col text before turning on DLR (I hope)
 PrepDLR80Col
                     lda       CLRAN3                  ;enables DLR
                     sta       SET80VID
                     sta       C80STOREON              ; enable aux/page1,2 mapping
-
                     LDA       #$A0                    ;USE A BLANK SPACE TO
                     JSR       $C300                   ;TURN ON THE VIDEO FIRMWARE
-
                     rts
 
 DL_SetDLRMode
@@ -506,6 +430,7 @@ DL_SetDLRMode
                     sta       C80STOREON              ; enable aux/page1,2 mapping
                     sta       MIXCLR                  ;make sure graphics-only mode
                     rts
+
 DrawUMLogo
                     lda       #<UMLOGOLOW_MAINRLE
                     sta       $2
@@ -521,6 +446,7 @@ DrawUMLogo
                     sta       TXTPAGE2
                     jsr       DKUnpackRLEToLoRes
                     rts
+
 DrawMMTLogo
                     lda       #<MMT_MAINRLE
                     sta       $2
