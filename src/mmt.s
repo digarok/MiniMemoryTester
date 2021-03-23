@@ -27,7 +27,7 @@
 
                            org          $2000                         ; start at $2000 (all ProDOS8 system files)
                            typ          $ff                           ; set P8 type ($ff = "SYS") for output file
-                           dsk          mmtsystem                     ; tell compiler what name for output file
+                           dsk          mmt.system                     ; tell compiler what name for output file
                            put          applerom
 
 Init
@@ -452,15 +452,6 @@ TestLogError               PushAll
 *Mesg_Error0	asc "Wrote: $00 %12345678    Read: $00 %12345678"
 
 
-TestRollBack
-                           lda          TestDirection
-                           eor          #$01
-                           sta          TestDirection
-                           jsr          TestAdvanceLocation
-                           lda          TestDirection
-                           eor          #$01
-                           sta          TestDirection
-                           rts
 
 TestForceUpdateStatus      PushAll
                            stx          _stash
@@ -595,7 +586,7 @@ TestMemoryLocationTwoPass
                            bne          :UNHANDLED
                            jmp          Test_16BitWalk1TP
 
-:UNHANDLED                 sep          #$30
+:UNHANDLED                 sep          #$30                            ; @todo: what is this?
                            rep          #$10
 
                            rts
@@ -774,7 +765,7 @@ BANKPATCH12                =            *-1
 
                            PushAll
                            sep          #$20
-                           jsr          CORRUPTOR
+                           jsr          CORRUPTOR  ; @todo: inline
                            clc
                            xce
                            rep          #$30
@@ -1314,9 +1305,9 @@ TESTSTATE_WRITE            =            2
 TESTSTATE_BOTH             =            3
 UpdateScanInterval         equ          #$1000
 
-Mesg_Welcome               asc          "Mini Memory Tester v1.0.1  - Copyright (c) 2015-2018 Dagen Brock",00
-Mesg_Promo                 asc          "Visit ReactiveMicro.com & UltimateApple2.com for Apple II RAM cards & more!",$8D,$8D
-                           asc          " Full manual and latest version available at github.com/digarok/mmt",00
+Mesg_Welcome               asc          "Mini Memory Tester v1.0.2  - Copyright (c) 2015-2021 Dagen Brock",00
+Mesg_Promo                 asc          "Visit ReactiveMicro.com & UltimateApple2.com for Apple II RAM cards & hw.",$8D,$8D
+                           asc          "Full manual and latest version available at github.com/digarok/mmt",00
 Mesg_InternalRam256        asc          "Built-In RAM  256K",00
 Mesg_InternalRam1024       asc          "Built-In RAM  1024K",00
 Mesg_ExpansionRam          asc          "Expansion RAM ",00
@@ -1749,7 +1740,7 @@ _clearstring               asc          "                         ",$00
 
 MainMenuStrs
                            asc          " ______________________________________________________________________________",$8D,$00
-                           asc          $1B,'ZV_@ZVWVWVWV_',"Mini Memory Tester v1.0.1",'ZVWVWVWVWVWVWVWVWV_'," // Infinitum ",'ZWVWVWVW_',$18,$00
+                           asc          $1B,'ZV_@ZVWVWVWV_',"Mini Memory Tester v1.0.2",'ZVWVWVWVWVWVWVWVWV_'," // Infinitum ",'ZWVWVWVW_',$18,$00
                            asc          $1B,'ZLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL_',$18,00
                            asc          $1B,'ZZ \GGGGGGGGGGGGG_',"Test  Settings",'ZGGGGGGGGGGGGG\ _'," ",'Z \GGGGGGGG_',"Info",'ZGGGGGGGG\ _'," ",'_',$18,00
                            asc          $1B,'ZZ',"                                              ",'_'," ",'Z',"                          ",'_'," ",'_',$18,00

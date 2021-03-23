@@ -33,69 +33,31 @@ ToLower             cmp       #"Z"
 
 
                     mx        %11
-ColorizeMenu
-                    lda       #6
-                    ldx       #$A0                    ; lt gray
-                    jsr       WaitScanline
-
-                    lda       #7
-                    ldx       #$A0                    ; lt gray
-                    jsr       WaitScanline
-
-                    lda       #8
-                    ldx       #$C0                    ; green
-                    jsr       WaitScanline
-
-                    lda       #9
-                    ldx       #$C0                    ; green
-                    jsr       WaitScanline
-
-                    lda       #10
-                    ldx       #$C0                    ; green
-                    jsr       WaitScanline
-
-                    lda       #11
-                    ldx       #$d0                    ; yello
-                    jsr       WaitScanline
-
-                    lda       #12
-                    ldx       #$90                    ; orange
-                    jsr       WaitScanline
-
-                    lda       #13
-                    ldx       #$10                    ; red
-                    jsr       WaitScanline
-
-                    lda       #14
-                    ldx       #$30                    ; purple
-                    jsr       WaitScanline
-
-
-                    lda       #15
-                    ldx       #$70                    ; bblue
-                    jsr       WaitScanline
-
-                    lda       #16
-                    ldx       #$50                    ; grey
-                    jsr       WaitScanline
-
-                    lda       #17
-                    ldx       #$f0                    ; white
-                    jsr       WaitScanline
+ColorizeMenu        sei
+                    XSCANLINE #$6;#$A0               ;lt grey
+                    XSCANLINE #$7;#$C0               ;grn
+                    XSCANLINE #$8;#$D0               ;yello
+                    XSCANLINE #$A;#$90               ;orange
+                    XSCANLINE #$B;#$10               ;red
+                    XSCANLINE #$C;#$30               ;purple
+                    XSCANLINE #$E;#$70               ;blue
+                    XSCANLINE #$F;#$50               ;grey
+                    XSCANLINE #$10;#$F0               ;white
+                    cli
                     rts
 
-* now stores x immediately
-WaitScanline
-                    sta       :val+1
-
-:waitloop           ldal      $e0c02f
+* I think this still has latent issues with a desync'ed bit 0 (race condition)
+XSCANLINE           MAC
+                    ldx #]2
+:waitloop           lda      $c02f
                     asl
-                    ldal      $e0c02e
+                    lda      $c02e
                     rol
-:val                cmp       #$00
+:val                cmp       #]1
                     bne       :waitloop
                     stx       $c022
-                    rts
+                    <<<
+
 
 VBlankForce
 :vbl                ldal      $00c019
@@ -121,7 +83,7 @@ WaitSCB             sta       :val+1
                                                       ; horizcnt even/odd right as it changes
                                                       ; and start early or something?
                     rts
-MAXSCB              db        0
+
 
 
 WaitSome            ldy       #$07
