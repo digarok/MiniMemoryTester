@@ -1082,11 +1082,11 @@ TestAdvanceLocation        lda          TestDirection
 
 :dn                        lda          TestSize16Bit
                            beq          :dn8
-:dn16                      dex
-                           cpx          #0
-                           beq          :hitBankBoundry
+:dn16                      cpx          #0                            ;check if already at 0?
+                           beq          :hitBankBoundry               ;
+                           dex                                        
+                           beq          :hitBankBoundry               ;how about now?
                            dex                                        ;
-                           cpx          #0
                            beq          :hitBankBoundryTest           ;we still need to test in this case.  side effect of odd start/ends
                            bra          :testStartAddr
 :dn8                       cpx          #0
@@ -1276,7 +1276,6 @@ TestPatchBanks             lda          CurBank
 
                            rts
 
-
 CORRUPTOR                  lda          $C000
                            bpl          _nokey
                            and          #11101111
@@ -1286,8 +1285,7 @@ CORRUPTOR                  lda          $C000
                            stal         $020000,x
 BANKPATCHXX                =            *-1
                            sta          $C010                         ; clear it or we can't test WaitOnError
-_nokey                     nop
-                           rts
+_nokey                     rts
                            mx           %11
 
 
