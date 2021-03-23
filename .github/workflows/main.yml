@@ -6,7 +6,7 @@ jobs:
     name: Run assembly and disk image CICD pipeline
     steps:
     # CHECKOUT AND ASSEMBLE ON EVERY PUSH, ANY BRANCH
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Install Merlin
       uses: digarok/install-merlin32-action@v0.1.2
 
