@@ -1091,7 +1091,8 @@ TestAdvanceLocation        lda          TestDirection
 
 :dn                        lda          TestSize16Bit
                            beq          :dn8
-:dn16                      cpx          #0
+:dn16                      dex
+                           cpx          #0
                            beq          :hitBankBoundry
                            dex                                        ;
                            cpx          #0
