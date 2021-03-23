@@ -1,0 +1,64 @@
+on: [push]
+
+jobs:
+  cicd_pipeline:
+    runs-on: ubuntu-latest
+    name: Run assembly and disk image CICD pipeline
+    steps:
+    # CHECKOUT AND ASSEMBLE ON EVERY PUSH, ANY BRANCH
+    - uses: actions/checkout@v2
+    - name: Install Merlin
+      uses: digarok/install-merlin32-action@v0.1.2
+
+    - name: Assemble Source 
+      run: |
+        merlin32 -V src/mmt.s
+
+    - name: Install Cadius
+      uses: digarok/install-cadius-action@v0.1.2
+
+    - name: Make Bootable ProDOS Image
+      if: startsWith(github.ref, 'refs/tags/v') 
+      run: ./make_po.sh
+
+    # EVERYTHING BELOW IS ONLY WHEN VERSION TAGS PUSHED (i.e. tag like "v0.1")
+    - name: Create Release
+      id: create_release
+      if: startsWith(github.ref, 'refs/tags/v') 
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+
+    - name: Upload Release Asset - 140KB ProDOS Image
+      if: startsWith(github.ref, 'refs/tags/v') 
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} 
+        asset_path: ./MMT140.po
+        asset_name: MMT140.po
+        asset_content_type: application/octet-stream
+    - name: Upload Release Asset - 800KB ProDOS Image (.po)
+      if: startsWith(github.ref, 'refs/tags/v') 
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} 
+        asset_path: ./MMT800.po
+        asset_name: MMT800.po
+        asset_content_type: application/octet-stream
+    - name: Upload Release Asset - 800KB ProDOS Image (.2mg)
+      if: startsWith(github.ref, 'refs/tags/v') 
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} 
+        asset_path: ./MMT800.2mg
+        asset_name: MMT800.2mg
+        asset_content_type: application/octet-stream

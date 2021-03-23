@@ -1,2 +1,12 @@
 .DS_Store
 *_Output.txt
+
+# Don't commit disk images.  They are built on releases page now.
+MMT*.po
+MMT*.2mg
+
+# Don't commit builds.
+src/mmt.system
+
+# Don't commit ProDOS (should be a symlink)
+PRODOS.2.4.2
