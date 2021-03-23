@@ -8,14 +8,14 @@ jobs:
     # CHECKOUT AND ASSEMBLE ON EVERY PUSH, ANY BRANCH
     - uses: actions/checkout@v1
     - name: Install Merlin
-      uses: digarok/install-merlin32-action@v0.1.0
+      uses: digarok/install-merlin32-action@v0.1.2
 
     - name: Assemble Source 
       run: |
         merlin32 -V src/mmt.s
 
     - name: Install Cadius
-      uses: digarok/install-cadius-action@v0.1.0
+      uses: digarok/install-cadius-action@v0.1.2
 
     - name: Make Bootable ProDOS Image
       if: startsWith(github.ref, 'refs/tags/v') 
